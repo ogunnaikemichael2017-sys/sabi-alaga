@@ -109,14 +109,14 @@ export default function MotionEffects() {
     gsap.from(".por", { clipPath: "inset(100% 0% 0% 0%)", duration: 1.4, ease: "power3.inOut", scrollTrigger: { trigger: ".por", start: "top 80%" } });
     gsap.from(".ticket", { scale: 0.8, rotation: -4, opacity: 0, duration: 1.2, ease: "back.out(1.4)", scrollTrigger: { trigger: ".ticket", start: "top 85%" } });
 
-    // stacked service cards: text entrance + previous card recedes (no darkening)
+    // stacked service cards: text entrance + previous card recedes
     const ps = $(".pn");
     ps.forEach((p, i) => {
       gsap.from(p.querySelector(".txt"), { x: -50, opacity: 0, duration: 0.9, ease: "power3.out", scrollTrigger: { trigger: p, start: "top 80%" } });
       if (ps[i + 1]) gsap.to(p, { scale: 0.94, ease: "none", scrollTrigger: { trigger: ps[i + 1], start: "top 85%", end: "top " + (54 + i * 20) + "px", scrub: true } });
     });
 
-    // scroll-scrubbed canvas portrait in About (capped at the first 10 seconds of the video)
+    // scroll-scrubbed canvas portrait in About
     const cvs = document.getElementById("sv");
     const sv = document.querySelector(".scrub.sv") || document.querySelector(".scrub");
     if (cvs && sv) {

@@ -3,11 +3,11 @@
 import { useEffect, useRef } from "react";
 
 const CARDS = [
-  { q: "“Placeholder: a couple on how she calmed both families and kept the day on time.”", b: "Bride and groom, Lagos" },
-  { q: "“Placeholder: a groomsman on the fun of the beg for the bride.”", b: "Groom’s friend, Ibadan" },
-  { q: "“Placeholder: a planner on how easy she was to work with.”", b: "Wedding planner, Lagos" },
-  { q: "“Placeholder: a mother of the bride on how respectful and organised the introduction was.”", b: "Mother of the bride, Ibadan" },
-  { q: "“Placeholder: a trainee on booking their first event after her course.”", b: "Training graduate" },
+  { q: "\u201CPlaceholder: a couple on how she calmed both families and kept the day on time.\u201D", b: "Bride and groom, Lagos" },
+  { q: "\u201CPlaceholder: a groomsman on the fun of the beg for the bride.\u201D", b: "Groom\u2019s friend, Ibadan" },
+  { q: "\u201CPlaceholder: a planner on how easy she was to work with.\u201D", b: "Wedding planner, Lagos" },
+  { q: "\u201CPlaceholder: a mother of the bride on how respectful and organised the introduction was.\u201D", b: "Mother of the bride, Ibadan" },
+  { q: "\u201CPlaceholder: a trainee on booking their first event after her course.\u201D", b: "Training graduate" },
 ];
 
 const BIG = "Placeholder: a couple describes how she calmed both families and kept the whole day on time.";
