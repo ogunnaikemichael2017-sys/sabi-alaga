@@ -19,7 +19,7 @@ export default function Hero() {
     <header className="hero">
       <div className="wrap">
         <nav className="nav" aria-label="Main">
-          <a className="logo" href="#top">The Sabi Alaga</a>
+          <a className="logo" href="#top" aria-label="The Sabi Alaga"><img src="/logo.png" alt="The Sabi Alaga" width="110" height="67" /></a>
           <a className="btn gold" href="#book">Check my date</a>
         </nav>
         <div className="hg" id="top">

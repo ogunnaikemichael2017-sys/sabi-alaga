@@ -9,7 +9,7 @@ export default function Footer() {
           <a href="#book">Book a date</a>
         </nav>
         <div className="fi">
-          <div><b>The Sabi Alaga</b><br />Yoruba traditional wedding host<br />Lagos and Ibadan</div>
+          <div><img src="/logo.png" alt="The Sabi Alaga" width="130" height="80" /><br />Yoruba traditional wedding host<br />Lagos and Ibadan</div>
           <div>Instagram and TikTok: @thesabialaga</div>
         </div>
       </div>
