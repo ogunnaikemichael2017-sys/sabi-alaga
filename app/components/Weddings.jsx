@@ -32,7 +32,7 @@ export default function Weddings() {
       <div className="wedin">
         <div className="wrap">
           <h2>Real weddings, real energy</h2>
-          <p className="sub">Clips from events she has hosted, shown with each couple&rsquo;s permission. Tap the speaker to hear the sound.</p>
+          <p className="sub">Clips from events I have hosted, shown with each couple&rsquo;s permission. Tap the speaker at the bottom of a clip to hear the sound.</p>
         </div>
         <div className="rail" tabIndex={0} aria-label="Wedding clips, scroll sideways">
           {CLIPS.map((c, i) => (
