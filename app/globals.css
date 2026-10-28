@@ -1,3 +1,4 @@
+
 :root{--fuchsia:#C4175F;--indigo:#14154A;--gold:#F2B632;--paper:#FBF4EA;--ink:#1B1530;--muted:#5b5470;
 --serif:"Fraunces",Georgia,serif;--sans:"Figtree",system-ui,sans-serif;
 box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -19,6 +20,8 @@ a{color:inherit}
 background-image:radial-gradient(circle at 14px 14px,rgba(242,182,50,.35) 2.5px,transparent 3px),radial-gradient(circle at 42px 42px,rgba(20,21,74,.28) 4px,transparent 4.5px);background-size:56px 56px}
 .nav{display:flex;justify-content:space-between;align-items:center;padding:22px 0}
 .logo{font:900 22px var(--serif);text-decoration:none;letter-spacing:-.01em}
+.logo img{display:block;height:34px;width:auto}
+.fi img{display:block;height:46px;width:auto;margin-bottom:6px}
 .nav .btn{padding:10px 20px;font-size:15px}
 .hg{display:grid;grid-template-columns:1.5fr .8fr;gap:30px;align-items:center;padding:30px 0 90px}
 h1{font-size:clamp(58px,11.5vw,168px);font-style:italic;text-shadow:5px 5px 0 var(--indigo)}
