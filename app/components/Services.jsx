@@ -3,7 +3,7 @@ const CARDS = [
   { h: "Introductions and engagements", p: "Parlor and family introductions run with warmth, humour and respect for both houses.", a: "Ask about this", href: "#book", photo: "/images/service-2.jpg", alt: "The alaga presenting a fan to a couple in royal blue aso oke" },
   { h: "Eru Iyawo setup", p: "The bride\u2019s entourage and gift presentation, styled and presented beautifully.", a: "Ask about this", href: "#book", photo: "/images/service-3.jpg", alt: "The alaga holding the microphone beside a bride in purple lace" },
   { h: "Traditional wedding MC", p: "Your day anchored from the first cue to the last dance: order, energy and timing that never slips.", a: "Ask about this", href: "#book", photo: "/images/service-4.jpg", alt: "The alaga seated with a couple under a lighted arch backdrop" },
-  { h: "Gele tying and styling", p: "Gele tied beautifully for the bride and her entourage, the finishing touch for your pictures.", a: "Ask about this", href: "#book", photo: "/images/service-5.jpg", alt: "The alaga playfully posing beside a couple in purple and blue" },
+  { h: "Brides gifts", p: "Gifts for the bride, sourced, wrapped and presented beautifully on the day of the engagement.", a: "Ask about this", href: "#book", photo: "/images/brides-gifts.jpg", alt: "Sabi standing beside a styled eru iyawo gift display" },
   { h: "Training and consultation", p: "Learn the work from someone who has done it for 5 years, or get advice before your own event.", a: "See training", href: "#training", photo: "/images/service-6.jpg", alt: "The alaga seated between a couple in white and gold" },
 ];
 
