@@ -157,3 +157,5 @@ w-d{display:inline-block;white-space:nowrap}c-h{display:inline-block}
 .shop p{margin:0;line-height:1.55}
 .shop .tx a{margin-top:auto;align-self:flex-start;background:var(--indigo);color:#fff;font-weight:700;padding:12px 22px;border-radius:999px;text-decoration:none;transition:background .15s}
 .shop .tx a:hover{background:var(--fuchsia)}
+
+[data-netlify-deploy-id]{display:none!important}
