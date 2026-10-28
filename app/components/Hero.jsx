@@ -27,7 +27,7 @@ export default function Hero() {
   const toggle = () => {
     const el = v.current;
     if (!el) return;
-    el.muted = m;
+    el.muted = !m;
     setM(!m);
     el.play().catch(() => {});
   };

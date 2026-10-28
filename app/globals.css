@@ -174,3 +174,6 @@ w-d{display:inline-block;white-space:nowrap}c-h{display:inline-block}
 .shop p{margin:0;line-height:1.55}
 
 [data-netlify-deploy-id]{display:none!important}
+
+@media (min-width:781px){.cf{--cw:390px}.cf.on{height:640px}}
+@media (max-width:780px){.hg .cta{flex-wrap:nowrap;gap:10px}.hg .cta .btn{flex:1;padding:13px 10px;font-size:15px;text-align:center;white-space:nowrap}}

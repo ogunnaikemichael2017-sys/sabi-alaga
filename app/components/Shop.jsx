@@ -2,8 +2,7 @@ export default function Shop() {
   return (
     <section className="shop" id="shop">
       <div className="wrap">
-        <h2>What I sell</h2>
-        <p className="sub">Beyond the microphone, I curate pieces that finish your day.</p>
+        <h2>Add the finishing touches</h2>
         <div className="grid">
           <article>
             <img src="/images/product-jewelry.jpg" alt="A pearl and crystal bridal jewelry set on a display bust" loading="lazy" />

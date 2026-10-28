@@ -23,7 +23,7 @@ export default function Weddings() {
     setMuted(muted.map((m, n) => (n === i ? next : true)));
     refs.current.forEach((v, n) => {
       if (!v) return;
-      v.muted = n === i ? !next : true;
+      v.muted = n === i ? next : true;
     });
   };
 

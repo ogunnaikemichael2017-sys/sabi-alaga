@@ -12,7 +12,7 @@ export default function WaFab() {
       {open && (
         <div className="wapop" role="dialog" aria-label="Welcome message from Sabi">
           <button type="button" className="x" aria-label="Close" onClick={() => setOpen(false)}>&times;</button>
-          <b>&#7862; k&aacute;&agrave;b&#7885;&#768;! I&#39;m Sabi &#128075;</b>
+          <b>Ẹ káàbọ̀! I'm Sabi 👋</b>
           <p>Thanks for stopping by. Tell me about your event and I&rsquo;ll take it from there.</p>
           <button type="button" className="go" onClick={go}>Chat on WhatsApp</button>
         </div>

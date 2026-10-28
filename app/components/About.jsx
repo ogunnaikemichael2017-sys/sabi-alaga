@@ -19,7 +19,7 @@ function Stat({ s }) {
     if (window.matchMedia("(prefers-reduced-motion:reduce)").matches) { setN(s.v); return; }
     let raf = 0, started = false;
     const run = () => {
-      const t0 = performance.now(), dur = 1800;
+      const t0 = performance.now(), dur = 4000;
       const tick = (t) => {
         const p = Math.min(1, (t - t0) / dur);
         setN(s.v * (1 - Math.pow(1 - p, 3)));
