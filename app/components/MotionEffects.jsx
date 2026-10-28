@@ -116,7 +116,7 @@ export default function MotionEffects() {
       if (ps[i + 1]) gsap.to(p, { scale: 0.94, filter: "brightness(0.82)", ease: "none", scrollTrigger: { trigger: ps[i + 1], start: "top 85%", end: "top " + (54 + i * 20) + "px", scrub: true } });
     });
 
-    // scroll-scrubbed canvas portrait in About
+    // scroll-scrubbed canvas portrait in About (capped at the first 10 seconds of the video)
     const cvs = document.getElementById("sv");
     const sv = document.querySelector(".scrub.sv") || document.querySelector(".scrub");
     if (cvs && sv) {
@@ -128,7 +128,7 @@ export default function MotionEffects() {
       let ok = false, busy = false, tg = 0;
       const fit = () => { const w = v.videoWidth, h = v.videoHeight; if (!w) return; const sc = Math.max(cvs.width / w, cvs.height / h); cx.drawImage(v, (cvs.width - w * sc) / 2, (cvs.height - h * sc) / 2, w * sc, h * sc); };
       const seek = () => { if (!ok || busy) return; if (Math.abs(v.currentTime - tg) > 0.03) { busy = true; v.currentTime = tg; } };
-      const upd = () => { const r = sv.getBoundingClientRect(), p = Math.max(0, Math.min(1, -r.top / (sv.offsetHeight - innerHeight))); tg = p * (v.duration || 10); seek(); };
+      const upd = () => { const r = sv.getBoundingClientRect(), p = Math.max(0, Math.min(1, -r.top / (sv.offsetHeight - innerHeight))); tg = p * Math.min(v.duration || 10, 10); seek(); };
       const onSeeked = () => { fit(); busy = false; seek(); };
       const onLoaded = () => { ok = true; fit(); upd(); const pr = v.play(); if (pr && pr.then) pr.then(() => { v.pause(); busy = true; v.currentTime = 0; }).catch(() => {}); };
       v.addEventListener("seeked", onSeeked);
