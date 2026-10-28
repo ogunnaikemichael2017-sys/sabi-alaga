@@ -14,11 +14,7 @@ export default function About() {
         <div>
           <h2>Hello, I’m Sabi</h2>
           <p style={{ maxWidth: "32em" }}>
-            Placeholder story: why she became an alaga, what she takes seriously
-            (starting with the dobale), and how she makes both families feel
-            looked after. Written in her own voice, because mothers of the bride
-            read this part first.
-          </p>
+            From the first knock on the gate to the last dance, I stand between two families and keep love, laughter and respect flowing. For 5 years I have hosted introductions, engagements and traditional weddings across Lagos and Ibadan: the dobale, the prayers, the eru iyawo, the geles. Every family is treated like my own, so from the moment I pick up the microphone, your people can relax and simply enjoy their day.</p>
           <div className="stats">
             <div><b>5 years</b>hosting</div>
             <div><b>2.8M</b>TikTok likes</div>

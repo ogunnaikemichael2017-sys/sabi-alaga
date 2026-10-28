@@ -5,7 +5,7 @@ export default function Training() {
         <div className="ticket">
           <div>
             <h2>Learn to be an alaga</h2>
-            <p style={{ maxWidth: "30em", color: "var(--muted)" }}>Training from a working alaga on the craft, the culture and the business. Format, price and next start date to be confirmed.</p>
+            <p style={{ maxWidth: "30em", color: "var(--muted)" }}>Practical training from a working alaga: the craft, the culture and the business of hosting. Small, hands-on sessions. Join the waitlist and be the first to hear when the next class opens.</p>
             <a className="btn gold" href="#book" style={{ borderColor: "var(--indigo)" }}>Join the waitlist</a>
           </div>
           <ul>

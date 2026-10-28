@@ -2,9 +2,6 @@ const CLIPS = [
   { v: "/clips/beg.mp4", t: "The beg for the bride", s: "Groom’s side, in aso-oke" },
   { v: "/clips/dobale.mp4", t: "The dobale moment", s: "Families honoured, all together" },
   { v: "/clips/energy.mp4", t: "Matching your energy", s: "Dancing with the guests" },
-  { t: "Couple name", s: "Engagement" },
-  { t: "Couple name", s: "Eru Iyawo entrance" },
-  { t: "Couple name", s: "Destination event" },
 ];
 
 export default function Weddings() {

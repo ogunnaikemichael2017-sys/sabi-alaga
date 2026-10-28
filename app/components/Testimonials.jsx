@@ -3,14 +3,16 @@
 import { useEffect, useRef } from "react";
 
 const CARDS = [
-  { q: "\u201CPlaceholder: a couple on how she calmed both families and kept the day on time.\u201D", b: "Bride and groom, Lagos" },
-  { q: "\u201CPlaceholder: a groomsman on the fun of the beg for the bride.\u201D", b: "Groom\u2019s friend, Ibadan" },
-  { q: "\u201CPlaceholder: a planner on how easy she was to work with.\u201D", b: "Wedding planner, Lagos" },
-  { q: "\u201CPlaceholder: a mother of the bride on how respectful and organised the introduction was.\u201D", b: "Mother of the bride, Ibadan" },
-  { q: "\u201CPlaceholder: a trainee on booking their first event after her course.\u201D", b: "Training graduate" },
+  { i: "/images/tst-1.jpg", a: "Real client message: your talent, energy and vibes are unmatched. You made the event so lively and enjoyable." },
+  { i: "/images/tst-2.jpg", a: "Real client message: you outdid yourself considering the short notice. You bad my sabi Alaga." },
+  { i: "/images/tst-3.jpg", a: "Real client message: you did amazing and I am proud of you." },
+  { i: "/images/tst-4.jpg", a: "Real client message from Eventbydaisy: you delivered very well, take your flowers." },
+  { i: "/images/tst-5.jpg", a: "Real client message: even with all the ups and downs during the planning you were calm all through and your customer service is top notch. The Sabi Alaga to the world." },
+  { i: "/images/tst-6.jpg", a: "Real client message: you helped me come out of my shell and made everyone feel comfortable. We are really glad we chose your service." },
+  { i: "/images/tst-7.jpg", a: "Real client message from Decor_with_Dems: the way you handled the guests and kept the ceremony flowing was truly impressive." },
 ];
 
-const BIG = "Placeholder: a couple describes how she calmed both families and kept the whole day on time.";
+const BIG = "The bride literally wouldn\u2019t stop talking about you afterwards!";
 
 function BigWords() {
   const words = BIG.split(" ");
@@ -74,12 +76,11 @@ export default function Testimonials() {
       <div className="wrap">
         <h2>What people say</h2>
         <p className="big"><BigWords /></p>
-        <b>Bride and groom, Lagos</b>
-        <div className="cf" aria-label="Testimonials" ref={ref}>
+        <b>Event decorator, Lagos</b>
+        <div className="cf" aria-label="Real messages from past clients" ref={ref}>
           {CARDS.map((c, i) => (
             <article key={i}>
-              <p>{c.q}</p>
-              <b>{c.b}</b>
+              <img src={c.i} alt={c.a} loading="lazy" width="660" />
             </article>
           ))}
         </div>
