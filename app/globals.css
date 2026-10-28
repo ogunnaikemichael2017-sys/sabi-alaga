@@ -88,10 +88,14 @@ label{display:grid;gap:6px;font-weight:700;font-size:15px}
 label.f,form .btn,.note{grid-column:1/-1}
 input,select{font:400 17px var(--sans);padding:15px;border-radius:14px;border:2.5px solid var(--indigo);background:#fff;color:var(--ink)}
 .note{font-size:14px;margin:0;color:#ffe3ef}
-footer{background:var(--indigo);color:#fff;padding:44px 0;font-size:15px}
-footer .wrap{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
+footer{background:linear-gradient(rgba(0,0,0,.66),rgba(0,0,0,.66)),#000 url(/footer-bg.jpg) no-repeat center 56px/min(440px,72vw);color:#fff;padding:350px 0 40px;min-height:82vh;font-size:15px}
+footer .wrap{display:block}
+.fm{display:flex;flex-wrap:wrap;justify-content:center;gap:12px 36px;margin-bottom:48px}
+.fm a{font:italic 900 clamp(26px,4.4vw,52px)/1.1 var(--serif);text-decoration:none;color:#fff}
+.fm a:hover{color:var(--gold)}
+.fi{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;border-top:1px solid rgba(255,255,255,.28);padding-top:24px}
 .wa{position:fixed;right:18px;bottom:calc(18px + env(safe-area-inset-bottom,0px));z-index:5;background:#25D366;color:#0b3d1c;font-weight:700;text-decoration:none;padding:15px 22px;border-radius:999px;box-shadow:0 8px 22px rgba(0,0,0,.35)}
-@media (max-width:780px){.hg,.ab,.ticket,form,.row{grid-template-columns:1fr}.hg{padding-bottom:60px}h1{text-shadow:3px 3px 0 var(--indigo)}h1 span+span{margin-left:0}.ticket{padding:40px 28px}section{padding:64px 0}.nav .btn{display:none}.row{gap:10px}}
+@media (max-width:780px){.hg,.ab,.ticket,form,.row{grid-template-columns:1fr}.hg{padding-bottom:60px}h1{text-shadow:3px 3px 0 var(--indigo)}h1 span+span{margin-left:0}.ticket{padding:40px 28px}section{padding:64px 0}.nav .btn{display:none}.row{gap:10px}footer{padding-top:270px!important;min-height:0!important}}
 .curtain{position:fixed;inset:0;z-index:60;pointer-events:none;animation:gone 0s 2.4s forwards}
 .curtain i{position:absolute;top:0;bottom:0;left:0;width:50.5%;background:var(--indigo);animation:cl 1.05s cubic-bezier(.77,0,.18,1) 1.3s forwards}
 .curtain i+i{left:auto;right:0;background:var(--fuchsia);animation-name:cr}
