@@ -1,6 +1,6 @@
 export default function About() {
   return (
-    <section className="scrub sv">
+    <section className="scrub">
       <div className="wrap ab">
         <div className="por">
           <canvas
