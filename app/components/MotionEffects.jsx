@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -40,7 +42,8 @@ export default function MotionEffects() {
       hero.addEventListener("mousemove", mm);
       cleanups.push(() => hero.removeEventListener("mousemove", mm));
 
-      $(".btn").forEach((b) => {
+      const btns = $(".btn");
+      btns.forEach((b) => {
         const mv = (e) => {
           const r = b.getBoundingClientRect();
           gsap.to(b, { x: (e.clientX - r.left - r.width / 2) * 0.25, y: (e.clientY - r.top - r.height / 2) * 0.35, duration: 0.3 });
@@ -112,6 +115,30 @@ export default function MotionEffects() {
       gsap.from(p.querySelector(".txt"), { x: -50, opacity: 0, duration: 0.9, ease: "power3.out", scrollTrigger: { trigger: p, start: "top 80%" } });
       if (ps[i + 1]) gsap.to(p, { scale: 0.94, filter: "brightness(0.82)", ease: "none", scrollTrigger: { trigger: ps[i + 1], start: "top 85%", end: "top " + (54 + i * 20) + "px", scrub: true } });
     });
+
+    // scroll-scrubbed canvas portrait in About
+    const cvs = document.getElementById("sv");
+    const sv = document.querySelector(".scrub.sv") || document.querySelector(".scrub");
+    if (cvs && sv) {
+      sv.classList.add("sv");
+      const v = document.createElement("video");
+      v.src = "/clips/scrub.mp4";
+      v.muted = true; v.defaultMuted = true; v.playsInline = true; v.setAttribute("playsinline", ""); v.preload = "auto";
+      const cx = cvs.getContext("2d");
+      let ok = false, busy = false, tg = 0;
+      const fit = () => { const w = v.videoWidth, h = v.videoHeight; if (!w) return; const sc = Math.max(cvs.width / w, cvs.height / h); cx.drawImage(v, (cvs.width - w * sc) / 2, (cvs.height - h * sc) / 2, w * sc, h * sc); };
+      const seek = () => { if (!ok || busy) return; if (Math.abs(v.currentTime - tg) > 0.03) { busy = true; v.currentTime = tg; } };
+      const upd = () => { const r = sv.getBoundingClientRect(), p = Math.max(0, Math.min(1, -r.top / (sv.offsetHeight - innerHeight))); tg = p * (v.duration || 10); seek(); };
+      const onSeeked = () => { fit(); busy = false; seek(); };
+      const onLoaded = () => { ok = true; fit(); upd(); const pr = v.play(); if (pr && pr.then) pr.then(() => { v.pause(); busy = true; v.currentTime = 0; }).catch(() => {}); };
+      v.addEventListener("seeked", onSeeked);
+      v.addEventListener("loadeddata", onLoaded);
+      addEventListener("scroll", upd, { passive: true });
+      addEventListener("resize", upd);
+      if (window.ScrollTrigger) ScrollTrigger.refresh();
+      v.load();
+      cleanups.push(() => { v.removeEventListener("seeked", onSeeked); v.removeEventListener("loadeddata", onLoaded); removeEventListener("scroll", upd); removeEventListener("resize", upd); v.removeAttribute("src"); v.load(); });
+    }
 
     const onLoad = () => ScrollTrigger.refresh();
     window.addEventListener("load", onLoad);
