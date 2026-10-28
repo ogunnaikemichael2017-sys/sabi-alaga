@@ -39,16 +39,12 @@ export default function Hero() {
           <a className="btn gold" href="#book">Check my date</a>
         </nav>
         <div className="hg" id="top">
-          <div>
+          <div className="hgtxt">
             <h1>
               <span><SplitLine text="The Sought" /></span>
               <span><SplitLine text="After Alaga" /></span>
             </h1>
             <p className="lead">I host your introduction, engagement or traditional wedding with dobale, joy and order. Lagos, Ibadan, or wherever your day is.</p>
-            <div className="cta">
-              <a className="btn gold" href="#book">Check my date</a>
-              <a className="btn out" href="#weddings">Watch the work</a>
-            </div>
           </div>
           <div className="arches" role="img" aria-label="The Sabi Alaga hosting a ceremony">
             <i></i><i></i>
@@ -58,6 +54,10 @@ export default function Hero() {
             <button type="button" className="mute" aria-label={m ? "Turn sound on" : "Turn sound off"} onClick={toggle}>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d={m ? ICON_OFF : ICON_ON} /></svg>
             </button>
+          </div>
+          <div className="cta">
+            <a className="btn gold" href="#book">Check my date</a>
+            <a className="btn out" href="#weddings">Watch the work</a>
           </div>
         </div>
       </div>

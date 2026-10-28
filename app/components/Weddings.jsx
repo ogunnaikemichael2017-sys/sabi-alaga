@@ -3,8 +3,8 @@
 import { useRef, useState } from "react";
 
 const CLIPS = [
-  { v: "/clips/beg.mp4", t: "The beg for the bride", s: "Groom\u2019s side, in aso-oke" },
-  { v: "/clips/dobale.mp4", t: "The dobale moment", s: "Families honoured, all together" },
+  { v: "/clips/beg.mp4", t: "The beg for the bride", s: "Groom\u2019s side, pleading their case" },
+  { v: "/clips/dobale.mp4", t: "The dobale moment", s: "Groom\u2019s men, flat on the floor" },
   { v: "/clips/energy.mp4", t: "Matching your energy", s: "Dancing with the guests" },
   { v: "/clips/v3.mp4", t: "The groom\u2019s men", s: "Steeze and composure" },
   { v: "/clips/v4.mp4", t: "Song and praise", s: "The women lead the entrance" },
