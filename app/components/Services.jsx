@@ -1,8 +1,8 @@
 const CARDS = [
   { h: "Alaga Iduro and Ijoko", p: "The traditional host of your ceremony: both families, the prayers, the dobale and the praise.", a: "Ask about this", href: "#book", video: "/clips/hero.mp4", icons: 1 },
   { h: "Introductions and engagements", p: "Parlor and family introductions run with warmth, humour and respect for both houses.", a: "Ask about this", href: "#book", video: "/clips/energy.mp4", icons: 2 },
-  { h: "Eru Iyawo setup", p: "The bride\u2019s entourage and gift presentation, styled and presented beautifully.", a: "Ask about this", href: "#book", video: "/clips/dobale.mp4", icons: 3 },
-  { h: "Training and consultation", p: "Learn the work from someone who has done it for 5 years, or get advice before your own event.", a: "See training", href: "#training", photo: "Training photos coming soon", icons: 4 },
+  { h: "Eru Iyawo setup", p: "The bride’s entourage and gift presentation, styled and presented beautifully.", a: "Ask about this", href: "#book", video: "/clips/dobale.mp4", icons: 3 },
+  { h: "Training and consultation", p: "Learn the work from someone who has done it for 5 years, or get advice before your own event.", a: "See training", href: "#training", photo: "Her training photo goes here", icons: 4 },
 ];
 
 export default function Services() {
