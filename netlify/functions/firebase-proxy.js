@@ -120,9 +120,13 @@ exports.handler = async (event) => {
     return json(400, { error: "invalid JSON body" });
   }
   const { action, collection, docId, data, pageSize, pageToken, orderBy, where, mask, max } = req;
-  if (!action || !collection) return json(400, { error: "action and collection are required" });
-  if (!/^[A-Za-z0-9_/-]+$/.test(collection)) return json(400, { error: "bad collection path" });
-  if (docId && !/^[A-Za-z0-9_-]+$/.test(docId)) return json(400, { error: "bad docId" });
+  if (!action) return json(400, { error: "action is required" });
+  const isDiag = action === "databases" || action === "projects";
+  if (!isDiag) {
+    if (!collection) return json(400, { error: "action and collection are required" });
+    if (!/^[A-Za-z0-9_/-]+$/.test(collection)) return json(400, { error: "bad collection path" });
+    if (docId && !/^[A-Za-z0-9_-]+$/.test(docId)) return json(400, { error: "bad docId" });
+  }
 
   let sa;
   try { sa = svc(); } catch (e) {
@@ -226,6 +230,17 @@ exports.handler = async (event) => {
         .filter((x) => x.document)
         .map((x) => ({ ...fromFirestore(x.document.fields), __id: x.document.name.split("/").pop() }));
       return json(200, { docs });
+    }
+
+    if (action === "databases") {
+      const r = await fetch(`https://firestore.googleapis.com/v1/projects/${sa.project_id}/databases`, { headers: await authz() });
+      const d = await r.json();
+      return json(r.status, d);
+    }
+    if (action === "projects") {
+      const r = await fetch("https://cloudresourcemanager.googleapis.com/v1/projects?pageSize=100", { headers: await authz() });
+      const d = await r.json();
+      return json(r.status, d);
     }
 
     return json(400, { error: `unknown action: ${action}` });
