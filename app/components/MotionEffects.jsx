@@ -122,7 +122,7 @@ export default function MotionEffects() {
     if (cvs && sv) {
       sv.classList.add("sv");
       const v = document.createElement("video");
-      v.src = "/clips/scrub.mp4";
+      v.src = "https://res.cloudinary.com/di4dlnd5x/video/upload/v1793345886/sabi-alaga/videos/scrub.mp4";
       v.muted = true; v.defaultMuted = true; v.playsInline = true; v.setAttribute("playsinline", ""); v.preload = "auto";
       const cx = cvs.getContext("2d");
       let ok = false, busy = false, tg = 0;

@@ -30,7 +30,7 @@ export default function RootLayout({ children }) {
           href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,600;0,900;1,600;1,900&family=Figtree:wght@400;500;700&display=swap"
           rel="stylesheet"
         />
-        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+        <link rel="icon" href="https://res.cloudinary.com/di4dlnd5x/image/upload/v1793345878/sabi-alaga/images/favicon.svg" type="image/svg+xml" />
       </head>
       <body>{children}</body>
     </html>

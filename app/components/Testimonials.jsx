@@ -3,13 +3,13 @@
 import { useEffect, useRef } from "react";
 
 const CARDS = [
-  { i: "/images/tst-1.jpg", a: "Real client message: your talent, energy and vibes are unmatched. You made the event so lively and enjoyable." },
-  { i: "/images/tst-2.jpg", a: "Real client message: you outdid yourself considering the short notice. You bad my sabi Alaga." },
-  { i: "/images/tst-3.jpg", a: "Real client message: you did amazing and I am proud of you." },
-  { i: "/images/tst-4.jpg", a: "Real client message from Eventbydaisy: you delivered very well, take your flowers." },
-  { i: "/images/tst-5.jpg", a: "Real client message: even with all the ups and downs during the planning you were calm all through and your customer service is top notch. The Sabi Alaga to the world." },
-  { i: "/images/tst-6.jpg", a: "Real client message: you helped me come out of my shell and made everyone feel comfortable. We are really glad we chose your service." },
-  { i: "/images/tst-7.jpg", a: "Real client message from Decor_with_Dems: the way you handled the guests and kept the ceremony flowing was truly impressive." },
+  { i: "https://res.cloudinary.com/di4dlnd5x/image/upload/v1793345873/sabi-alaga/images/tst-1.jpg", a: "Real client message: your talent, energy and vibes are unmatched. You made the event so lively and enjoyable." },
+  { i: "https://res.cloudinary.com/di4dlnd5x/image/upload/v1793345874/sabi-alaga/images/tst-2.jpg", a: "Real client message: you outdid yourself considering the short notice. You bad my sabi Alaga." },
+  { i: "https://res.cloudinary.com/di4dlnd5x/image/upload/v1793345875/sabi-alaga/images/tst-3.jpg", a: "Real client message: you did amazing and I am proud of you." },
+  { i: "https://res.cloudinary.com/di4dlnd5x/image/upload/v1793345876/sabi-alaga/images/tst-4.jpg", a: "Real client message from Eventbydaisy: you delivered very well, take your flowers." },
+  { i: "https://res.cloudinary.com/di4dlnd5x/image/upload/v1793345876/sabi-alaga/images/tst-5.jpg", a: "Real client message: even with all the ups and downs during the planning you were calm all through and your customer service is top notch. The Sabi Alaga to the world." },
+  { i: "https://res.cloudinary.com/di4dlnd5x/image/upload/v1793345877/sabi-alaga/images/tst-6.jpg", a: "Real client message: you helped me come out of my shell and made everyone feel comfortable. We are really glad we chose your service." },
+  { i: "https://res.cloudinary.com/di4dlnd5x/image/upload/v1793345877/sabi-alaga/images/tst-7.jpg", a: "Real client message from Decor_with_Dems: the way you handled the guests and kept the ceremony flowing was truly impressive." },
 ];
 
 const BIG = "The bride literally wouldn\u2019t stop talking about you afterwards!";

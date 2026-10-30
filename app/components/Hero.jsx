@@ -35,7 +35,7 @@ export default function Hero() {
     <header className="hero">
       <div className="wrap">
         <nav className="nav" aria-label="Main">
-          <a className="logo" href="#top" aria-label="The Sabi Alaga"><img src="/logo.png" alt="The Sabi Alaga" width="110" height="67" /></a>
+          <a className="logo" href="#top" aria-label="The Sabi Alaga"><img src="https://res.cloudinary.com/di4dlnd5x/image/upload/v1793345855/sabi-alaga/logo.png" alt="The Sabi Alaga" width="110" height="67" /></a>
           <a className="btn gold" href="#book">Check my date</a>
         </nav>
         <div className="hg" id="top">
@@ -49,7 +49,7 @@ export default function Hero() {
           <div className="arches" role="img" aria-label="The Sabi Alaga hosting a ceremony">
             <i></i><i></i>
             <i>
-              <video src="/clips/hero.mp4" autoPlay muted loop playsInline preload="auto" ref={v}></video>
+              <video src="https://res.cloudinary.com/di4dlnd5x/video/upload/v1793345885/sabi-alaga/videos/hero.mp4" autoPlay muted loop playsInline preload="auto" ref={v}></video>
             </i>
             <button type="button" className="mute" aria-label={m ? "Turn sound on" : "Turn sound off"} onClick={toggle}>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d={m ? ICON_OFF : ICON_ON} /></svg>

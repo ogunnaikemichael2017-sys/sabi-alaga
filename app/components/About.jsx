@@ -43,7 +43,7 @@ export default function About() {
       <div className="wrap ab">
         <div className="por">
           <img
-            src="/images/sabi-portrait.jpg"
+            src="https://res.cloudinary.com/di4dlnd5x/image/upload/v1793345867/sabi-alaga/images/sabi-portrait.jpg"
             alt="Sabi in a green lace outfit, standing beside The Sabi Alaga sign"
             width="715"
             height="867"
