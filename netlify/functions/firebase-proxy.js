@@ -121,7 +121,7 @@ exports.handler = async (event) => {
   }
   const { action, collection, docId, data, pageSize, pageToken, orderBy, where, mask, max } = req;
   if (!action) return json(400, { error: "action is required" });
-  const isDiag = action === "databases" || action === "projects" || action === "collections";
+  const isDiag = action === "databases" || action === "projects" || action === "collections" || action === "deleteDatabase" || action === "createDatabase";
   if (!isDiag) {
     if (!collection) return json(400, { error: "action and collection are required" });
     if (!/^[A-Za-z0-9_\/ -]+$/.test(collection)) return json(400, { error: "bad collection path" });
@@ -239,6 +239,18 @@ exports.handler = async (event) => {
     }
     if (action === "databases") {
       const r = await fetch(`https://firestore.googleapis.com/v1/projects/${sa.project_id}/databases`, { headers: await authz() });
+      const d = await r.json();
+      return json(r.status, d);
+    }
+    if (action === "deleteDatabase") {
+      const r = await fetch(`https://firestore.googleapis.com/v1/projects/${sa.project_id}/databases/${encodeURIComponent(req.databaseId || "default")}`, { method: "DELETE", headers: await authz() });
+      const d = await r.json();
+      return json(r.status, d);
+    }
+    if (action === "createDatabase") {
+      const dbId = req.databaseId || "default";
+      const body = { type: "FIRESTORE_NATIVE", locationId: req.locationId || "europe-west1", databaseEdition: "STANDARD" };
+      const r = await fetch(`https://firestore.googleapis.com/v1/projects/${sa.project_id}/databases?databaseId=${encodeURIComponent(dbId)}`, { method: "POST", headers: { ...(await authz()), "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const d = await r.json();
       return json(r.status, d);
     }
