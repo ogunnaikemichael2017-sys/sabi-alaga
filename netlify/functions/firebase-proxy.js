@@ -124,7 +124,7 @@ exports.handler = async (event) => {
   const isDiag = action === "databases" || action === "projects";
   if (!isDiag) {
     if (!collection) return json(400, { error: "action and collection are required" });
-    if (!/^[A-Za-z0-9_/-]+$/.test(collection)) return json(400, { error: "bad collection path" });
+    if (!/^[A-Za-z0-9_\/ -]+$/.test(collection)) return json(400, { error: "bad collection path" });
     if (docId && !/^[A-Za-z0-9_-]+$/.test(docId)) return json(400, { error: "bad docId" });
   }
 
@@ -132,7 +132,7 @@ exports.handler = async (event) => {
   try { sa = svc(); } catch (e) {
     return json(500, { error: e.message });
   }
-  const base = `https://firestore.googleapis.com/v1/projects/${sa.project_id}/databases/(default)/documents/${collection}`;
+  const base = `https://firestore.googleapis.com/v1/projects/${sa.project_id}/databases/(default)/documents/${encodeURIComponent(collection)}`;
   const authz = () => getAccessToken().then((t) => ({ Authorization: `Bearer ${t}` }));
 
   try {
@@ -232,6 +232,11 @@ exports.handler = async (event) => {
       return json(200, { docs });
     }
 
+    if (action === "collections") {
+      const r = await fetch(`https://firestore.googleapis.com/v1/projects/${sa.project_id}/databases/(default)/documents:listCollectionIds`, { method: "POST", headers: await authz(), body: "{}" });
+      const d = await r.json();
+      return json(r.status, d);
+    }
     if (action === "databases") {
       const r = await fetch(`https://firestore.googleapis.com/v1/projects/${sa.project_id}/databases`, { headers: await authz() });
       const d = await r.json();
