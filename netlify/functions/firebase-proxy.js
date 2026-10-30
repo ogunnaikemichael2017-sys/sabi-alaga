@@ -107,7 +107,9 @@ exports.handler = async (event) => {
   const key = process.env.SABI_PROXY_KEY;
   if (!key) return json(500, { error: "SABI_PROXY_KEY is not set" });
   const given = event.headers["x-proxy-key"] || event.headers["X-Proxy-Key"];
-  if (!given || !crypto.timingSafeEqual(Buffer.from(given), Buffer.from(key))) {
+  const eq = (a, b) =>
+    crypto.timingSafeEqual(crypto.createHash("sha256").update(a).digest(), crypto.createHash("sha256").update(b).digest());
+  if (!given || !eq(given, key)) {
     return json(401, { error: "unauthorized" });
   }
 
