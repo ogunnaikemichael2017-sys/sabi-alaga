@@ -201,12 +201,18 @@ export function Media({ me, toast }) {
   const canEdit = me && ["owner", "editor"].includes(me.role);
 
   async function load() {
-    const [m, p] = await Promise.all([
+    const [m, p, cl] = await Promise.all([
       post({ action: "listMedia", idToken: token() }),
       post({ action: "listPages", idToken: token() }),
+      post({ action: "cloudList", idToken: token() }),
     ]);
-    const list = (m.data.items || []).map((x) => ({ ...x, f: x.f || "" }));
+    const saved = (m.data.items || []).map((x) => ({ ...x, f: x.f || "" }));
+    const cloud = cl.status === 200 && Array.isArray(cl.data.items) ? cl.data.items : [];
+    const have = new Set(saved.map((x) => x.id));
+    const fresh = cloud.filter((x) => x.id && !have.has(x.id)).map((x) => ({ ...x, alt: x.alt || "", f: x.f || "" }));
+    const list = saved.concat(fresh);
     setItems(list);
+    if (fresh.length && canEdit) await post({ action: "saveMedia", idToken: token(), items: list });
     const ps = p.data.pages || [];
     setPages(ps);
     const byPage = {};
@@ -236,12 +242,23 @@ export function Media({ me, toast }) {
     const added = [];
     for (const file of Array.from(files)) {
       try {
-        const fd = new FormData();
-        fd.append("upload_preset", "ciya_academy");
-        fd.append("file", file);
-        const r = await fetch("https://api.cloudinary.com/v1_1/di4dlnd5x/auto/upload", { method: "POST", body: fd });
-        const j = await r.json();
-        if (!r.ok || !j.secure_url) {
+        const rtype = file.type && file.type.indexOf("video/") === 0 ? "video" : "image";
+        let j = null;
+        if (file.size <= 4000000) {
+          const b64 = await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(file); });
+          const r = await post({ action: "cloudUpload", idToken: token(), file: b64, resourceType: rtype, folder: "sabialaga" });
+          if (r.status === 200 && r.data.ok) {
+            j = { secure_url: r.data.secure_url, public_id: r.data.public_id, resource_type: r.data.resource_type, bytes: r.data.bytes, original_filename: r.data.original_filename, format: r.data.format };
+          }
+        }
+        if (!j) {
+          const fd = new FormData();
+          fd.append("upload_preset", "ciya_academy");
+          fd.append("file", file);
+          const r = await fetch("https://api.cloudinary.com/v1_1/di4dlnd5x/auto/upload", { method: "POST", body: fd });
+          j = await r.json();
+        }
+        if (!j.secure_url) {
           toast && toast("Upload failed for " + file.name + ". Try a smaller file.");
           continue;
         }
@@ -275,13 +292,24 @@ export function Media({ me, toast }) {
   }
   async function remove(id) {
     if (!canEdit || busy) return;
-    if (await persist((items || []).filter((x) => x.id !== id))) { toast && toast("File deleted"); addPending(1); }
+    setBusy(true);
+    const m = (items || []).find((x) => x.id === id);
+    let cloudOk = true, cloudMsg = "";
+    if (m && m.id && !m.id.startsWith("up-")) {
+      const r = await post({ action: "cloudDelete", idToken: token(), publicId: m.id, resourceType: m.type === "video" ? "video" : "image" });
+      if (!(r.status === 200 && r.data.ok)) { cloudOk = false; cloudMsg = (r.data && r.data.error) || "Cloudinary refused"; }
+    }
+    const ok = await persist((items || []).filter((x) => x.id !== id));
+    if (ok) { toast && toast(cloudOk ? "File deleted" : "Removed from the library, but " + cloudMsg); addPending(1); }
+    setBusy(false);
   }
 
   if (!items) return <p className="mut">Loading&hellip;</p>;
   const fs = folders(pages, contentByPage);
-  const cnt = (id) => items.filter((m) => (m.f || "") === id).length;
+  const unsorted = items.filter((m) => !fs.some((f) => f.id === m.f));
+  const cnt = (id) => (id === "unsorted" ? unsorted.length : items.filter((m) => (m.f || "") === id).length);
   const shown = mf === "all" ? fs : fs.filter((f) => f.id === mf);
+  const vidThumb = (u) => (u ? String(u).replace(/\.[a-z0-9]+(\?|$)/i, ".jpg$1") : "");
   return (
     <div>
       <h2>Media library</h2>
@@ -304,6 +332,9 @@ export function Media({ me, toast }) {
         {fs.filter((f) => cnt(f.id) > 0).map((f) => (
           <button className={"chip keep" + (mf === f.id ? " on" : "")} key={f.id || "u"} type="button" onClick={() => setMf(f.id)}>{f.label} ({cnt(f.id)})</button>
         ))}
+        {unsorted.length > 0 && (
+          <button className={"chip keep" + (mf === "unsorted" ? " on" : "")} type="button" onClick={() => setMf("unsorted")}>Unsorted ({unsorted.length})</button>
+        )}
       </div>
       {shown.map((f) => {
         const its = items.map((m, i) => [m, i]).filter((q) => (q[0].f || "") === f.id);
@@ -314,8 +345,11 @@ export function Media({ me, toast }) {
             <div className="tiles">
               {its.map(([m]) => (
                 <div className="tile" key={m.id}>
-                  <div className={"th" + (m.type === "video" ? " v" : "")} style={m.type !== "video" && m.url ? { backgroundImage: "url('" + m.url + "')" } : undefined}>
-                    {m.type === "video" ? "Video" : m.url ? "" : "Photo"}
+                  <div
+                    className={"th" + (m.type === "video" ? " v" : "")}
+                    style={m.url ? { backgroundImage: "url('" + (m.type === "video" ? vidThumb(m.url) : m.url) + "')" } : undefined}
+                  >
+                    {m.type === "video" ? (vidThumb(m.url) ? "" : "Video") : m.url ? "" : "Photo"}
                   </div>
                   <div className="b">
                     <b>{m.name}</b>
@@ -346,6 +380,36 @@ export function Media({ me, toast }) {
           </div>
         );
       })}
+      {mf === "unsorted" && unsorted.length > 0 && (
+        <div>
+          <div className="grp">Unsorted</div>
+          <div className="tiles">
+            {unsorted.map((m) => (
+              <div className="tile" key={m.id}>
+                <div
+                  className={"th" + (m.type === "video" ? " v" : "")}
+                  style={m.url ? { backgroundImage: "url('" + (m.type === "video" ? vidThumb(m.url) : m.url) + "')" } : undefined}
+                >
+                  {m.type === "video" ? (vidThumb(m.url) ? "" : "Video") : m.url ? "" : "Photo"}
+                </div>
+                <div className="b">
+                  <b>{m.name}</b>
+                  {kbText(m.kb)}
+                  {m.type === "video" && m.kb > 20000 && <><span className="pill f">Too heavy</span></>}
+                  <select
+                    value={m.f || ""}
+                    style={{ margin: "4px 0", padding: "5px 6px", fontSize: 12 }}
+                    onChange={(e) => moveTo(m.id, e.target.value)}
+                  >
+                    {fs.map((fo) => <option key={fo.id || "u"} value={fo.id}>Move to: {fo.label}</option>)}
+                  </select>
+                  {canEdit && <button className="btn s d" type="button" onClick={() => remove(m.id)}>Delete</button>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       {items.length === 0 && <p className="mut">No files yet. Upload photos and videos above and they appear under their section.</p>}
     </div>
   );
@@ -458,6 +522,7 @@ export function Team({ me, toast }) {
   const [team, setTeam] = useState(null);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("editor");
+  const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [invite, setInvite] = useState(null);
   const isOwner = me && me.role === "owner";
@@ -472,10 +537,11 @@ export function Team({ me, toast }) {
     e.preventDefault();
     if (!isOwner || busy) return;
     setBusy(true);
-    const r = await post({ action: "inviteUser", idToken: token(), email, role });
+    const r = await post({ action: "inviteUser", idToken: token(), email, role, name: name.trim() });
     if (r.status === 200 && r.data.ok) {
       setInvite({ email: r.data.email, role: r.data.role, tempPassword: r.data.tempPassword });
       setEmail("");
+      setName("");
       await load();
     } else {
       toast && toast(r.data.error || "Could not send the invite.");
@@ -502,10 +568,10 @@ export function Team({ me, toast }) {
   return (
     <div>
       <h2>Team</h2>
-      <p className="mut">Invite helpers by email. They sign in with a password or Google using that same email, and get the role you choose.</p>
+      <p className="mut">Invite helpers by name and email. They sign in with a password or Google using that same email, and get the role you choose.</p>
       {team.map((m) => (
         <div className="row" key={m.uid}>
-          <span className="nm">{m.email}</span>
+          <span className="nm">{m.name ? (<>{m.name}<br /><span className="mut" style={{ fontSize: 13 }}>{m.email}</span></>) : m.email}</span>
           <span className={"pill " + (m.status === "Invited" ? "w" : "ok")}>{m.status || "Active"}</span>
           {m.role === "owner" ? (
             <span className="pill f">owner</span>
@@ -527,6 +593,7 @@ export function Team({ me, toast }) {
         <div className="card" style={{ marginTop: 14 }} onSubmit={() => {}}>
           <h3 style={{ fontSize: 18, marginBottom: 10 }}>Invite someone</h3>
           <form onSubmit={sendInvite}>
+            <label>Name<input type="text" placeholder="e.g. Sarah Safaru" value={name} onChange={(e) => setName(e.target.value)} /></label>
             <label>Email<input type="email" placeholder="helper@example.com" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
             <label>Role
               <select value={role} onChange={(e) => setRole(e.target.value)}>

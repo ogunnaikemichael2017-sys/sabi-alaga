@@ -522,8 +522,9 @@ exports.handler = async (event) => {
       }
       const upd = await setClaims(projectId, localId, { role, mustChangePassword: true });
       if (upd.status !== 200) return json(upd.status, { error: "could not set role", detail: upd.body });
-      const rec = await docCreate(projectId, "invites", { email, role, invitedBy: caller.email || null, invitedAt: { __timestamp: new Date().toISOString() } }, email.replace(/[^A-Za-z0-9_.@-]/g, "_"));
-      const teamRec = await docCreate(projectId, "team", { email, role, status: "Invited", invitedBy: caller.email || null, invitedAt: { __timestamp: new Date().toISOString() } }, localId);
+      const name = String(req.name || "").trim().slice(0, 80) || null;
+      const rec = await docCreate(projectId, "invites", { email, name, role, invitedBy: caller.email || null, invitedAt: { __timestamp: new Date().toISOString() } }, email.replace(/[^A-Za-z0-9_.@-]/g, "_"));
+      const teamRec = await docCreate(projectId, "team", { email, name, role, status: "Invited", invitedBy: caller.email || null, invitedAt: { __timestamp: new Date().toISOString() } }, localId);
       await logAct(projectId, "Invited " + email + " as " + role);
       return json(200, { ok: true, email, role, tempPassword, inviteRecord: rec.status, teamRecord: teamRec.status });
     }
@@ -792,6 +793,99 @@ exports.handler = async (event) => {
       await logAct(projectId, "Restored an earlier version of " + page);
       await logAct(projectId, "Sent the website live");
       return json(200, { ok: true });
+    }
+
+    // ---------- Cloudinary (signed, server-side; keys live only in Netlify env) ----------
+    if (action === "cloudInfo") {
+      await verifyIdToken(req.idToken, projectId);
+      const name = process.env.CLOUDINARY_NAME || "";
+      const key = process.env.CLOUDINARY_KEY || "";
+      const secret = process.env.CLOUDINARY_SECRET || "";
+      return json(200, { cloud: name || null, keySet: Boolean(key), secretSet: Boolean(secret) });
+    }
+
+    if (action === "cloudList") {
+      await verifyIdToken(req.idToken, projectId);
+      const cname = process.env.CLOUDINARY_NAME || "";
+      const ckey = process.env.CLOUDINARY_KEY || "";
+      const csec = process.env.CLOUDINARY_SECRET || "";
+      if (!cname || !ckey || !csec) return json(500, { error: "Cloudinary keys are not configured on Netlify yet" });
+      const auth = "Basic " + Buffer.from(ckey + ":" + csec).toString("base64");
+      const out = [];
+      for (const type of ["video", "image"]) {
+        let url = `https://api.cloudinary.com/v1_1/${cname}/resources/${type}/upload?max_results=100`;
+        for (let page = 0; page < 6 && url; page++) {
+          const r = await fetch(url, { headers: { Authorization: auth } });
+          if (!r.ok) return json(r.status === 200 ? 502 : r.status, { error: "Cloudinary list failed for " + type, detail: await r.json().catch(() => ({})) });
+          const j = await r.json();
+          for (const res of j.resources || []) {
+            const short = String(res.public_id || "").split("/").pop() || "file";
+            out.push({
+              id: res.public_id,
+              name: short + "." + (res.format || ""),
+              type,
+              kb: Math.round((res.bytes || 0) / 1024),
+              url: res.secure_url,
+              created: res.created_at || "",
+            });
+          }
+          url = j.next_cursor ? `https://api.cloudinary.com/v1_1/${cname}/resources/${type}/upload?max_results=100&next_cursor=${encodeURIComponent(j.next_cursor)}` : null;
+        }
+      }
+      return json(200, { items: out });
+    }
+
+    if (action === "cloudUpload") {
+      const claims = await verifyIdToken(req.idToken, projectId);
+      if (!["owner", "editor"].includes(claims.role)) return json(403, { error: "your role cannot upload media" });
+      const cname = process.env.CLOUDINARY_NAME || "";
+      const ckey = process.env.CLOUDINARY_KEY || "";
+      const csec = process.env.CLOUDINARY_SECRET || "";
+      if (!cname || !ckey || !csec) return json(500, { error: "Cloudinary keys are not configured on Netlify yet" });
+      const file = String(req.file || "");
+      if (!/^data:[^;]+;base64,/.test(file) || file.length > 9000000) return json(400, { error: "file must be a base64 data URI under about 6 MB" });
+      const rtype = req.resourceType === "video" ? "video" : "image";
+      const ts = String(Math.floor(Date.now() / 1000));
+      const params = { timestamp: ts };
+      if (req.folder) params.folder = String(req.folder).replace(/[^A-Za-z0-9_\-/]/g, "").slice(0, 60);
+      const base = Object.keys(params).sort().map((k) => k + "=" + params[k]).join("&") + csec;
+      const sig = crypto.createHash("sha1").update(base).digest("hex");
+      const fd = new URLSearchParams();
+      fd.append("file", file);
+      fd.append("api_key", ckey);
+      fd.append("timestamp", ts);
+      fd.append("signature", sig);
+      if (params.folder) fd.append("folder", params.folder);
+      const r = await fetch(`https://api.cloudinary.com/v1_1/${cname}/${rtype}/upload`, { method: "POST", body: fd });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || !j.secure_url) return json(r.status === 200 ? 502 : r.status, { error: "Cloudinary upload failed", detail: j.error || j });
+      await logAct(projectId, "Uploaded " + ((j.original_filename || "file") + "." + (j.format || "")) + " to Cloudinary");
+      return json(200, { ok: true, public_id: j.public_id, secure_url: j.secure_url, resource_type: j.resource_type, bytes: j.bytes || 0, original_filename: j.original_filename || "", format: j.format || "" });
+    }
+
+    if (action === "cloudDelete") {
+      const claims = await verifyIdToken(req.idToken, projectId);
+      if (!["owner", "editor"].includes(claims.role)) return json(403, { error: "your role cannot delete media" });
+      const cname = process.env.CLOUDINARY_NAME || "";
+      const ckey = process.env.CLOUDINARY_KEY || "";
+      const csec = process.env.CLOUDINARY_SECRET || "";
+      if (!cname || !ckey || !csec) return json(500, { error: "Cloudinary keys are not configured on Netlify yet" });
+      const pid = String(req.publicId || "").trim();
+      if (!pid || pid.length > 200) return json(400, { error: "publicId required" });
+      const rtype = req.resourceType === "video" ? "video" : "image";
+      const ts = String(Math.floor(Date.now() / 1000));
+      const base = "public_id=" + pid + "&timestamp=" + ts + csec;
+      const sig = crypto.createHash("sha1").update(base).digest("hex");
+      const fd = new URLSearchParams();
+      fd.append("public_id", pid);
+      fd.append("api_key", ckey);
+      fd.append("timestamp", ts);
+      fd.append("signature", sig);
+      const r = await fetch(`https://api.cloudinary.com/v1_1/${cname}/${rtype}/destroy`, { method: "POST", body: fd });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) return json(r.status === 200 ? 502 : r.status, { error: "Cloudinary delete failed", detail: j.error || j });
+      await logAct(projectId, "Deleted " + pid + " from Cloudinary");
+      return json(200, { ok: j.result === "ok" || j.result === "not found", result: j.result || "" });
     }
 
     // ---------- key-gated actions ----------

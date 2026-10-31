@@ -330,8 +330,8 @@ export default function Editor({ me, page = "home", onPageChange, toast }) {
                 <div className="ith">
                   <span>{singular(list.label)} {n + 1}</span>
                   <span className="ib">
-                    <button className="btn s" type="button" disabled={n === 0} onClick={() => moveItem(i, list.key, n, -1)}>Up</button>
-                    <button className="btn s" type="button" disabled={n === (d[list.key] || []).length - 1} onClick={() => moveItem(i, list.key, n, 1)}>Down</button>
+                    <button className="btn s mv" type="button" title="Move up" aria-label="Move up" disabled={n === 0} onClick={() => moveItem(i, list.key, n, -1)}>&uarr;</button>
+                    <button className="btn s mv" type="button" title="Move down" aria-label="Move down" disabled={n === (d[list.key] || []).length - 1} onClick={() => moveItem(i, list.key, n, 1)}>&darr;</button>
                     <button className="btn s d" type="button" onClick={() => delItem(i, list.key, n)}>Remove</button>
                   </span>
                 </div>
@@ -431,8 +431,8 @@ export default function Editor({ me, page = "home", onPageChange, toast }) {
               <span className="mut">{d.headline || d.title || d.tag || "Untitled"}</span>
               {badge}
             </span>
-            <button className="btn s" type="button" disabled={i === 0} onClick={() => moveSection(s.id, -1)}>Up</button>
-            <button className="btn s" type="button" disabled={i === sections.length - 1} onClick={() => moveSection(s.id, 1)}>Down</button>
+            <button className="btn s mv" type="button" title="Move up" aria-label="Move up" disabled={i === 0} onClick={() => moveSection(s.id, -1)}>&uarr;</button>
+            <button className="btn s mv" type="button" title="Move down" aria-label="Move down" disabled={i === sections.length - 1} onClick={() => moveSection(s.id, 1)}>&darr;</button>
             <button className="btn s" type="button" onClick={() => setVis(i, s.vis === false)}>{s.vis === false ? "Show" : "Hide"}</button>
             <button className="btn s p" type="button" onClick={() => setEdit(s.id)}>Edit</button>
             {canEdit && <button className="btn s d" type="button" onClick={() => setModal({ t: "del", id: s.id })}>Remove</button>}
