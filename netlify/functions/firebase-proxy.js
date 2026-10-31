@@ -489,7 +489,7 @@ exports.handler = async (event) => {
       if (req.docId && !/^[A-Za-z0-9_-]+$/.test(req.docId)) return json(400, { error: "bad docId" });
       const dbId = encodeURIComponent(req.databaseId || "(default)");
       const apiV = req.apiVersion === "v1beta1" ? "v1beta1" : "v1";
-      const base = `https://firestore.googleapis.com/${apiV}/projects/${projectId}/databases/${dbId}/documents/${encodeURIComponent(req.collection)}`;
+      const base = `https://firestore.googleapis.com/${apiV}/projects/${projectId}/databases/${dbId}/documents/${req.collection.split("/").map(encodeURIComponent).join("/")}`;
 
       if (action === "get") {
         if (!req.docId) return json(400, { error: "docId required for get" });
