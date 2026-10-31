@@ -69,6 +69,55 @@ const G_ICON = (
   </svg>
 );
 
+function VersionHistory({ canRestore, onClose, onRestored }) {
+  const [rows, setRows] = useState(null);
+  const [busy, setBusy] = useState("");
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const r = await post({ action: "listVersions", idToken: JSON.parse(localStorage.getItem("sa_admin") || "null")?.idToken });
+      if (alive) setRows(r.status === 200 ? r.data.versions || [] : []);
+    })();
+    return () => { alive = false; };
+  }, []);
+  async function restore(page, vid) {
+    if (busy) return;
+    setBusy(vid);
+    const t = JSON.parse(localStorage.getItem("sa_admin") || "null")?.idToken;
+    const r = await post({ action: "restoreVersion", idToken: t, page, vid });
+    setBusy("");
+    if (r.status === 200) onRestored();
+    else toastLike(r.data.error || "Could not restore that version.");
+  }
+  return (
+    <>
+      <h3>Version history</h3>
+      <p className="mut">Restore any earlier version as a new draft.</p>
+      {!rows && <p className="mut">Loading&hellip;</p>}
+      {rows && rows.length === 0 && <p className="mut">No versions yet. They build up as pages are saved.</p>}
+      {rows && rows.map((v) => (
+        <div className="row" key={v.page + "/" + v.vid}>
+          <span className="nm">
+            Version {v.vid.slice(-4)}
+            <br />
+            <span className="mut">{(v.by || "someone").split("@")[0]} &middot; {v.updated ? new Date(v.updated).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : ""} &middot; {v.count} sections ({v.page})</span>
+          </span>
+          {canRestore && <button className="btn s" type="button" disabled={!!busy} onClick={() => restore(v.page, v.vid)}>{busy === v.vid ? "Restoring\u2026" : "Restore"}</button>}
+        </div>
+      ))}
+      <button className="btn" type="button" onClick={onClose}>Close</button>
+    </>
+  );
+}
+
+function toastLike(msg) {
+  const t = document.createElement("div");
+  t.className = "toast";
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2400);
+}
+
 const TABS = [
   ["overview", "Overview"], ["sections", "Sections"], ["pages", "Pages"],
   ["media", "Media"], ["enquiries", "Enquiries"], ["team", "Team"], ["settings", "Settings"],
@@ -381,7 +430,9 @@ export default function AdminClient() {
                     View as
                     <select className="keep" value={viewAs} onChange={(e) => setViewAs(e.target.value)}>
                       <option value="owner">owner</option>
+                      <option value="editor">editor</option>
                       <option value="contributor">contributor</option>
+                      <option value="viewer">viewer</option>
                     </select>
                   </label>
                 )}
@@ -391,7 +442,7 @@ export default function AdminClient() {
                 <button
                   className="btn s p"
                   type="button"
-                  disabled={!pend && canPub}
+                  disabled={!pend || !canEdit}
                   onClick={() => {
                     if (!canPub) { setModal({ t: "req" }); return; }
                     setModal({ t: "pub" });
@@ -427,20 +478,11 @@ export default function AdminClient() {
             <div className="modal" onClick={() => setModal(null)}>
               <div className="card" onClick={(e) => e.stopPropagation()}>
                 {modal.t === "hist" && (
-                  <>
-                    <h3>History</h3>
-                    <p className="mut">When each page was last saved. Version restore arrives with the versions step.</p>
-                    {pages.map((p) => (
-                      <div className="row" key={p.id}>
-                        <span className="nm">
-                          {p.title || (p.id === "home" ? "Home" : p.id)}
-                          <br />
-                          <span className="mut">{p.id === "home" ? "/" : "/" + p.id} &middot; {p.sectionCount} sections &middot; saved {p.updated ? new Date(p.updated).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "never"}</span>
-                        </span>
-                      </div>
-                    ))}
-                    <button className="btn" type="button" onClick={() => setModal(null)}>Close</button>
-                  </>
+                  <VersionHistory
+                    canRestore={canEdit}
+                    onClose={() => setModal(null)}
+                    onRestored={() => { setModal(null); bump(); toast("Version restored as your draft. Press Publish when ready."); }}
+                  />
                 )}
                 {modal.t === "pub" && (
                   <>

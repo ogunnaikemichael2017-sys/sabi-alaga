@@ -59,11 +59,12 @@ export function Overview({ me, go }) {
     let alive = true;
     (async () => {
       const t = token();
-      const [m, e, tm, home] = await Promise.all([
+      const [m, e, tm, home, meta] = await Promise.all([
         post({ action: "listMedia", idToken: t }),
         post({ action: "listEnquiries", idToken: t }),
         post({ action: "listTeam", idToken: t }),
         post({ action: "publicContent", page: "home" }),
+        post({ action: "getMeta", idToken: t }),
       ]);
       if (!alive) return;
       const homeSections = (home.data.content && home.data.content.sections) || [];
@@ -73,6 +74,10 @@ export function Overview({ me, go }) {
         team: tm.data.team || [],
         live: homeSections.filter((s) => s.vis !== false).length,
         total: homeSections.length,
+        activity: (meta.data.activity || []).map((x) => {
+          const at = String(x || "").split("::");
+          return { when: at[0] || "", text: at.slice(1).join("::") || String(x) };
+        }),
       });
     })();
     return () => { alive = false; };
@@ -92,11 +97,11 @@ export function Overview({ me, go }) {
         <div className="card"><div className="mut">Team</div><div className="big">{d.team.length}</div></div>
       </div>
       <div className="card">
-        <h3 style={{ fontSize: 18, marginBottom: 8 }}>Recent enquiries</h3>
-        {d.enq.slice(0, 5).length === 0 && <div className="mut">No enquiries yet. Booking form messages land here.</div>}
-        {d.enq.slice(0, 5).map((x) => (
-          <div key={x.id} className="mut" style={{ padding: "5px 0" }}>
-            {x.name} &middot; {x.eventType || "event"} &middot; {x.date || "date not set"} &middot; {x.status}
+        <h3 style={{ fontSize: 18, marginBottom: 8 }}>Recent activity</h3>
+        {d.activity.length === 0 && <div className="mut">No activity yet. Draft saves, uploads and publishes show up here.</div>}
+        {d.activity.map((a, i) => (
+          <div key={i} className="mut" style={{ padding: "5px 0" }}>
+            {a.text} &middot; {fmtWhen(a.when)}
           </div>
         ))}
       </div>
@@ -356,13 +361,27 @@ const NAMEMAP = {
 
 export function Enquiries({ me, toast }) {
   const [list, setList] = useState(null);
+  const [month, setMonth] = useState(11);
+  const [blocked, setBlocked] = useState(null);
   const canEdit = me && ["owner", "editor"].includes(me.role);
 
   async function load() {
-    const r = await post({ action: "listEnquiries", idToken: token() });
+    const [r, meta] = await Promise.all([
+      post({ action: "listEnquiries", idToken: token() }),
+      post({ action: "getMeta", idToken: token() }),
+    ]);
     setList(r.data.enquiries || []);
+    setBlocked(meta.data.blocked || []);
   }
   useEffect(() => { load(); }, []);
+
+  async function toggleDay(key) {
+    if (!canEdit || !blocked) return;
+    setBlocked((cur) => (cur.includes(key) ? cur.filter((x) => x !== key) : cur.concat([key]).sort()));
+    const r = await post({ action: "toggleBlocked", idToken: token(), key });
+    if (r.status === 200 && r.data.blocked) setBlocked(r.data.blocked);
+    else if (r.data && r.data.error) toast && toast(r.data.error);
+  }
 
   async function setStatus(id, status) {
     if (!canEdit) return;
@@ -400,6 +419,31 @@ export function Enquiries({ me, toast }) {
           {canEdit && <button className="btn s d" type="button" onClick={() => del(x.id)}>Delete</button>}
         </div>
       ))}
+      <div className="card" style={{ marginTop: 18 }}>
+        <h3 style={{ fontSize: 18 }}>Dates she is booked</h3>
+        <p className="mut">Tap a date to block or open it. Blocked dates show as taken on the site.</p>
+        <label style={{ width: "auto", maxWidth: 220 }}>
+          Month
+          <select className="keep" style={{ width: "auto" }} value={month} onChange={(e) => setMonth(Number(e.target.value))}>
+            <option value={11}>November 2026</option>
+            <option value={12}>December 2026</option>
+          </select>
+        </label>
+        <div className="cal">
+          {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => <div key={"h" + i}>{d}</div>)}
+          {Array.from({ length: new Date(2026, month - 1, 1).getDay() }, (_, i) => <div key={"b" + i} />)}
+          {Array.from({ length: new Date(2026, month, 0).getDate() }, (_, i) => {
+            const key = "2026-" + ("0" + month).slice(-2) + "-" + ("0" + (i + 1)).slice(-2);
+            const isBlocked = blocked && blocked.includes(key);
+            return (
+              <button key={key} type="button" className={isBlocked ? "x" : ""} disabled={!canEdit} onClick={() => toggleDay(key)}>
+                {i + 1}
+              </button>
+            );
+          })}
+        </div>
+        {!canEdit && <p className="mut" style={{ marginTop: 8 }}>Only the owner or an editor can change the calendar.</p>}
+      </div>
     </div>
   );
 }
@@ -526,11 +570,79 @@ export function Team({ me, toast }) {
   );
 }
 
+const SET_FIELDS = [
+  ["brand", "Brand name", false],
+  ["wa", "WhatsApp number (with country code)", false],
+  ["pop", "WhatsApp welcome message", true],
+  ["ig", "Instagram", false],
+  ["tt", "TikTok", false],
+  ["seoT", "Search title", false],
+  ["seoD", "Search description", true],
+];
+
 export function Settings({ me, onSavePassword, busy, pw1, setPw1, pw2, setPw2 }) {
+  const [set, setSet] = useState({ brand: "", wa: "", pop: "", ig: "", tt: "", seoT: "", seoD: "", logo: "" });
+  const [media, setMedia] = useState([]);
+  const [loaded, setLoaded] = useState(false);
+  const [busySave, setBusySave] = useState(false);
+  const canEdit = me && ["owner", "editor"].includes(me.role);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const [m, meta] = await Promise.all([
+        post({ action: "listMedia", idToken: token() }),
+        post({ action: "getMeta", idToken: token() }),
+      ]);
+      if (!alive) return;
+      setMedia(m.data.items || []);
+      setSet((cur) => ({ ...cur, ...(meta.data.settings || {}) }));
+      setLoaded(true);
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  async function save(e) {
+    e.preventDefault();
+    if (!canEdit || busySave) return;
+    setBusySave(true);
+    const r = await post({ action: "saveMeta", idToken: token(), settings: set });
+    if (r.status === 200) toast && toast("Site settings saved.");
+    else toast && toast(r.data.error || "Could not save the settings.");
+    setBusySave(false);
+  }
+
   return (
     <div>
       <h2>Site settings</h2>
       <div className="card">
+        <form onSubmit={save}>
+          {SET_FIELDS.map(([k, label, area]) => (
+            <label key={k}>
+              {label}
+              {area ? (
+                <textarea value={set[k] || ""} disabled={!canEdit || !loaded} onChange={(e) => setSet({ ...set, [k]: e.target.value })} />
+              ) : (
+                <input value={set[k] || ""} disabled={!canEdit || !loaded} onChange={(e) => setSet({ ...set, [k]: e.target.value })} />
+              )}
+            </label>
+          ))}
+          <label>
+            Logo
+            <select value={set.logo || ""} disabled={!canEdit || !loaded} onChange={(e) => setSet({ ...set, logo: e.target.value })}>
+              <option value="">None</option>
+              {media.map((m) => <option key={m.id} value={m.name}>{m.name}</option>)}
+            </select>
+          </label>
+          <button className="btn p" disabled={!canEdit || busySave || !loaded} type="submit">
+            {busySave ? "Saving\u2026" : "Save settings"}
+          </button>
+        </form>
+        <p className="mut" style={{ marginTop: 10 }}>
+          The WhatsApp number is what the booking form opens, and the search fields are what Google shows for the site.
+        </p>
+      </div>
+      <div className="card" style={{ marginTop: 14 }}>
         <h3 style={{ fontSize: 18, marginBottom: 10 }}>Your account</h3>
         <form onSubmit={onSavePassword}>
           <label>{me.hasPassword ? "New password" : "New password for email sign-in"}

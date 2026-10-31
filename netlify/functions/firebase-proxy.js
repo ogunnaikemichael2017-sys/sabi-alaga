@@ -184,6 +184,16 @@ async function docUpsert(projectId, path, doc) {
   return docCreate(projectId, parts.slice(0, -1).join("/"), doc, parts[parts.length - 1]);
 }
 
+// Append one line to the activity log shown on the Overview tab (last 12 kept).
+async function logAct(projectId, text) {
+  try {
+    const a = await docGet(projectId, "meta/activity");
+    let arr = a.status === 200 ? (fromFirestore(a.body.fields || {}).activity || []) : [];
+    arr = [new Date().toISOString() + "::" + String(text).slice(0, 140)].concat(arr).slice(0, 12);
+    await docUpsert(projectId, "meta/activity", { activity: arr });
+  } catch (e) {}
+}
+
 async function docDelete(projectId, path) {
   const t = await getAccessToken();
   const r = await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/${path}`, {
@@ -353,6 +363,7 @@ exports.handler = async (event) => {
           await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/${x.document.name.split("/databases/(default)/documents/")[1]}`, { method: "DELETE", headers: { Authorization: authz.Authorization, "X-Goog-User-Project": projectId } });
         }
       } catch (e) {}
+      await logAct(projectId, "Saved the " + page + " draft");
       return json(200, { ok: true, updated: now, savedBy: doc.updatedBy });
     }
 
@@ -513,6 +524,7 @@ exports.handler = async (event) => {
       if (upd.status !== 200) return json(upd.status, { error: "could not set role", detail: upd.body });
       const rec = await docCreate(projectId, "invites", { email, role, invitedBy: caller.email || null, invitedAt: { __timestamp: new Date().toISOString() } }, email.replace(/[^A-Za-z0-9_.@-]/g, "_"));
       const teamRec = await docCreate(projectId, "team", { email, role, status: "Invited", invitedBy: caller.email || null, invitedAt: { __timestamp: new Date().toISOString() } }, localId);
+      await logAct(projectId, "Invited " + email + " as " + role);
       return json(200, { ok: true, email, role, tempPassword, inviteRecord: rec.status, teamRecord: teamRec.status });
     }
 
@@ -585,6 +597,7 @@ exports.handler = async (event) => {
       const doc = { items: clean, updated: now, updatedBy: claims.email || claims.user_id || "" };
       const r = await docUpsert(projectId, "media/library", doc);
       if (r.status !== 200) return json(r.status, { error: "could not save the media library" });
+      await logAct(projectId, "Updated the media library");
       return json(200, { ok: true, items: clean.length });
     }
 
@@ -601,6 +614,7 @@ exports.handler = async (event) => {
       const id = "enq-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7);
       const r = await docCreate(projectId, "enquiries", { name, contact, eventType, date, location, note, status: "New", createdAt: { __timestamp: new Date().toISOString() } }, id);
       if (r.status !== 200) return json(r.status, { error: "could not save the enquiry" });
+      await logAct(projectId, "New enquiry from " + name);
       return json(200, { ok: true, id });
     }
 
@@ -666,6 +680,96 @@ exports.handler = async (event) => {
       if (!cfg.buildHook) return json(503, { error: "publishing is not wired up yet. Ask Michael to connect the build hook." });
       const r = await fetch(cfg.buildHook, { method: "POST" });
       if (r.status !== 200) return json(r.status, { error: "the publish request was refused. Try again." });
+      return json(200, { ok: true });
+    }
+
+    // ---------- signed-in meta: settings, blocked dates, activity, versions ----------
+    if (action === "getMeta") {
+      const claims = await verifyIdToken(req.idToken, projectId);
+      if (!claims.role) return json(403, { error: "sign in required" });
+      const [st, bl, ac] = await Promise.all([
+        docGet(projectId, "meta/settings"), docGet(projectId, "meta/blocked"), docGet(projectId, "meta/activity"),
+      ]);
+      return json(200, {
+        settings: st.status === 200 ? fromFirestore(st.body.fields || {}) : {},
+        blocked: bl.status === 200 ? (fromFirestore(bl.body.fields || {}).blocked || []) : [],
+        activity: ac.status === 200 ? (fromFirestore(ac.body.fields || {}).activity || []) : [],
+      });
+    }
+
+    // Save site settings (owner or editor).
+    if (action === "saveMeta") {
+      const claims = await verifyIdToken(req.idToken, projectId);
+      if (!["owner", "editor"].includes(claims.role)) return json(403, { error: "your role cannot change settings" });
+      const st = req.settings && typeof req.settings === "object" ? req.settings : null;
+      if (!st) return json(400, { error: "settings required" });
+      const out = {};
+      for (const k of ["brand", "wa", "pop", "ig", "tt", "seoT", "seoD", "logo"]) {
+        if (typeof st[k] === "string") out[k] = st[k].slice(0, 500);
+      }
+      const r = await docUpsert(projectId, "meta/settings", out);
+      if (r.status !== 200 && r.status !== 201) return json(r.status, r.body);
+      await logAct(projectId, "Updated the site settings");
+      return json(200, { ok: true });
+    }
+
+    // Block or open one date on the calendar (owner or editor).
+    if (action === "toggleBlocked") {
+      const claims = await verifyIdToken(req.idToken, projectId);
+      if (!["owner", "editor"].includes(claims.role)) return json(403, { error: "your role cannot change the calendar" });
+      const key = String(req.key || "");
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) return json(400, { error: "bad date" });
+      const b = await docGet(projectId, "meta/blocked");
+      let arr = b.status === 200 ? (fromFirestore(b.body.fields || {}).blocked || []) : [];
+      arr = arr.includes(key) ? arr.filter((x) => x !== key) : arr.concat([key]).sort();
+      const r = await docUpsert(projectId, "meta/blocked", { blocked: arr });
+      if (r.status !== 200 && r.status !== 201) return json(r.status, r.body);
+      await logAct(projectId, arr.includes(key) ? "Blocked " + key : "Opened " + key);
+      return json(200, { ok: true, blocked: arr });
+    }
+
+    // Version history across every page (last 20 kept per page).
+    if (action === "listVersions") {
+      const claims = await verifyIdToken(req.idToken, projectId);
+      if (!claims.role) return json(403, { error: "sign in required" });
+      const t = await getAccessToken();
+      const q = await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents:runQuery`, {
+        method: "POST", headers: { Authorization: `Bearer ${t}`, "X-Goog-User-Project": projectId, "Content-Type": "application/json" },
+        body: JSON.stringify({ structuredQuery: { from: [{ collectionId: "versions", allDescendants: true }], orderBy: [{ field: { fieldPath: "updated" }, direction: "DESCENDING" }], limit: 40 } }),
+      });
+      const rows = (await q.json()).filter((x) => x.document).map((x) => {
+        const seg = x.document.name.split("/documents/")[1].split("/");
+        const d = fromFirestore(x.document.fields || {});
+        return { page: seg[1], vid: seg[3], updated: d.updated, by: d.by, count: (d.sections || []).length };
+      });
+      return json(200, { versions: rows });
+    }
+
+    // Restore an earlier version as the current draft (owner or editor).
+    if (action === "restoreVersion") {
+      const claims = await verifyIdToken(req.idToken, projectId);
+      if (!["owner", "editor"].includes(claims.role)) return json(403, { error: "your role cannot restore versions" });
+      const page = String(req.page || "home").replace(/[^a-z0-9-]/gi, "") || "home";
+      const vid = String(req.vid || "");
+      if (!/^[0-9a-z-]{6,40}$/i.test(vid)) return json(400, { error: "bad version" });
+      const v = await docGet(projectId, `content/${page}/versions/${vid}`);
+      if (v.status !== 200) return json(404, { error: "no such version" });
+      const vd = fromFirestore(v.body.fields || {});
+      if (!Array.isArray(vd.sections) || !vd.sections.length) return json(400, { error: "that version is empty" });
+      const now = new Date().toISOString();
+      const by = claims.email || claims.user_id || "";
+      const nv = { updated: now, updatedBy: by, sections: vd.sections };
+      const authz = await getAccessToken().then((t) => ({ Authorization: `Bearer ${t}`, "X-Goog-User-Project": projectId, "Content-Type": "application/json" }));
+      const mask = ["updated", "updatedBy", "sections"].map((k) => `updateMask.fieldPaths=${k}`).join("&");
+      const fields = {};
+      for (const k of Object.keys(nv)) fields[k] = toFirestore(nv[k]);
+      const r = await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/content/${page}?${mask}`, {
+        method: "PATCH", headers: authz, body: JSON.stringify({ fields }),
+      });
+      if (!r.ok) return json(r.status, await r.json().catch(() => ({})));
+      await docCreate(projectId, `content/${page}/versions`, { updated: now, by, sections: vd.sections }, String(Date.now()) + "-rest");
+      await logAct(projectId, "Restored an earlier version of " + page);
+      await logAct(projectId, "Sent the website live");
       return json(200, { ok: true });
     }
 
