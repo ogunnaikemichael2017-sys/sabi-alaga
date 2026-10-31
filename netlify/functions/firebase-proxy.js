@@ -439,7 +439,7 @@ exports.handler = async (event) => {
       if (!ROLES.includes(role)) return json(400, { error: `role must be one of ${ROLES.join(", ")}` });
       const upd = await setClaims(projectId, targetUid, { role });
       if (upd.status !== 200) return json(upd.status, { error: "could not set role", detail: upd.body });
-      await docUpsert(projectId, `team/${targetUid}`, { email: null, role, status: "Active", updated: new Date().toISOString() });
+      await docUpsert(projectId, `team/${targetUid}`, { role, status: "Active", updated: new Date().toISOString() });
       return json(200, { ok: true, targetUid, role });
     }
 
