@@ -379,30 +379,35 @@ exports.handler = async (event) => {
     if (action === "debugClaims") {
       const out = {};
       const t = await getAccessToken();
-      const em = "sabi.claimtest.oct31@gmail.com";
-      const cr = await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${projectId}/accounts:signUp`, {
+      // Correct admin create-user endpoint: POST projects/{pid}/accounts
+      const cr = await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${projectId}/accounts`, {
         method: "POST", headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ email: em, password: "Temp-pass-1", emailVerified: true }),
+        body: JSON.stringify({ email: "sabi.claimtest.oct31@gmail.com", password: "Temp-pass-1", emailVerified: true }),
       });
-      out.signUp = { status: cr.status, body: (await cr.text()).slice(0, 300) };
-      let localId = null; try { localId = JSON.parse(out.signUp.body).localId; } catch (e) {}
-      if (localId) {
-        const br = await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${projectId}/accounts:batchUpdate`, {
-          method: "POST", headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ requests: [{ localId, customAttributes: JSON.stringify({ role: "editor" }) }] }),
-        });
-        out.batchUpdate = { status: br.status, body: (await br.text()).slice(0, 400) };
+      out.createUser = { status: cr.status, body: (await cr.text()).slice(0, 300) };
+      // batchUpdate on a real existing uid (the earlier flowtest user)
+      const probe = "7GVZC2DCspXqTUimFYZg6mLf59G3";
+      const br = await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${projectId}/accounts:batchUpdate`, {
+        method: "POST", headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ requests: [{ localId: probe, customAttributes: JSON.stringify({ role: "editor" }) }] }),
+      });
+      out.batchUpdate = { status: br.status, body: (await br.text()).slice(0, 400) };
+      // clean up both test users
+      const forEmail = async (email) => {
         const lr = await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${projectId}/accounts:lookup`, {
           method: "POST", headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ localId }),
+          body: JSON.stringify({ email }),
         });
-        out.lookup = { status: lr.status, body: (await lr.text()).slice(0, 400) };
+        const ld = await lr.json().catch(() => ({}));
+        const lid = ((ld.users || [])[0] || {}).localId;
+        if (!lid) return "not found";
         const dr = await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${projectId}/accounts:delete`, {
           method: "POST", headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ localId }),
+          body: JSON.stringify({ localId: lid }),
         });
-        out.delete = { status: dr.status, body: (await dr.text()).slice(0, 200) };
-      }
+        return dr.status;
+      };
+      out.cleanup = { claimtest: await forEmail("sabi.claimtest.oct31@gmail.com"), flowtest: await forEmail("sabi.flowtest.oct31@gmail.com") };
       return json(200, out);
     }
 
