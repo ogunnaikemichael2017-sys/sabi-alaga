@@ -121,7 +121,7 @@ exports.handler = async (event) => {
   }
   const { action, collection, docId, data, pageSize, pageToken, orderBy, where, mask, max } = req;
   if (!action) return json(400, { error: "action is required" });
-  const isDiag = action === "databases" || action === "projects" || action === "collections" || action === "deleteDatabase" || action === "createDatabase" || action === "setRules";
+  const isDiag = action === "databases" || action === "projects" || action === "collections" || action === "deleteDatabase" || action === "createDatabase" || action === "setRules" || action === "apiKeyTest";
   if (!isDiag) {
     if (!collection) return json(400, { error: "action and collection are required" });
     if (!/^[A-Za-z0-9_\/ -]+$/.test(collection)) return json(400, { error: "bad collection path" });
@@ -272,6 +272,24 @@ exports.handler = async (event) => {
         return json(r2.status, { ruleset: rsName, release: d2 });
       }
       return json(200, { ruleset: rsName, release: d });
+    }
+    if (action === "apiKeyTest") {
+      const lr = await fetch(`https://apikeys.googleapis.com/v2/projects/${sa.project_id}/keys`, { headers: await authz() });
+      const ld = await lr.json();
+      const keys = (ld.keys || []).map((k) => k.name);
+      const out = { keyCount: keys.length, firestoreStatus: null, firestoreBody: null };
+      if (keys.length) {
+        const kr = await fetch(`https://apikeys.googleapis.com/v2/${keys[0]}:getKeyString`, { method: "POST", headers: { ...(await authz()), "Content-Type": "application/json" }, body: "{}" });
+        const kd = await kr.json();
+        const keyString = kd.keyString || "";
+        const fr = await fetch(`https://firestore.googleapis.com/v1/projects/${sa.project_id}/databases/(default)/documents/orders?key=${encodeURIComponent(keyString)}`);
+        out.firestoreStatus = fr.status;
+        const fd = await fr.json();
+        out.firestoreBody = fd.error ? { code: fd.error.code, message: fd.error.message, status: fd.error.status } : fd;
+      } else {
+        out.keysListError = ld;
+      }
+      return json(200, out);
     }
     if (action === "projects") {
       const r = await fetch("https://cloudresourcemanager.googleapis.com/v1/projects?pageSize=100", { headers: await authz() });
