@@ -126,6 +126,7 @@ const TABS = [
 export default function AdminClient() {
   const [stage, setStage] = useState("loading"); // loading | form | changepass | authed
   const [tab, setTab] = useState("overview");
+  const [navOpen, setNavOpen] = useState(false);
   const [editPage, setEditPage] = useState("home");
   const [notice, setNotice] = useState("");
   const [viewAs, setViewAs] = useState("owner");
@@ -414,16 +415,20 @@ export default function AdminClient() {
       {stage === "authed" && me && (
         <>
           <div className={"shell" + (canEdit ? "" : " ro")}>
-            <nav className="side">
+            {navOpen && <div className="sideback" onClick={() => setNavOpen(false)} />}
+            <nav className={"side" + (navOpen ? " open" : "")}>
               <div className="lg">Admin</div>
               {TABS.map(([id, label]) => (
-                <button key={id} type="button" className={"keep" + (tab === id ? " on" : "")} onClick={() => { setTab(id); }}>
+                <button key={id} type="button" className={"keep" + (tab === id ? " on" : "")} onClick={() => { setTab(id); setNavOpen(false); }}>
                   {label}
                 </button>
               ))}
             </nav>
             <div>
               <div className="top">
+                <button className="btn s keep burger" type="button" aria-label="Menu" onClick={() => setNavOpen(!navOpen)}>
+                  <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3h12M2 8h12M2 13h12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
+                </button>
                 <b style={{ font: "italic 900 18px var(--serif)" }}>The Sabi Alaga</b>
                 <span className={"pill " + (pend ? "w" : "ok")}>{roleText}</span>
                 <span className="sp" />
