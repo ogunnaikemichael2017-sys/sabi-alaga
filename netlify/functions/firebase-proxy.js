@@ -1,7 +1,7 @@
 // env rebuilt for new Firebase project
 // Firestore proxy for The Sabi Alaga.
 // Auth: requests must carry header "x-proxy-key" matching SABI_PROXY_KEY.
-// Reads the Firebase service account from FIREBASE_SERVICE_JSON, signs a JWT,
+// Reads the Firebase service account from FIREBASE_SERVICE_ACCOUNT_JSON (or legacy FIREBASE_SERVICE_JSON), signs a JWT,
 // and proxies read/write calls to Firestore. No secrets ever reach the client.
 
 const crypto = require("crypto");
@@ -9,8 +9,8 @@ const crypto = require("crypto");
 let cachedToken = null; // { token, exp }
 
 function svc() {
-  const raw = process.env.FIREBASE_SERVICE_JSON;
-  if (!raw) throw new Error("FIREBASE_SERVICE_JSON is not set");
+  const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON || process.env.FIREBASE_SERVICE_JSON;
+  if (!raw) throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON or FIREBASE_SERVICE_JSON is not set");
   const json = JSON.parse(raw);
   if (json.private_key) json.private_key = json.private_key.replace(/\\n/g, "\n");
   return json;
