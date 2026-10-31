@@ -122,7 +122,7 @@ exports.handler = async (event) => {
   }
   const { action, collection, docId, data, pageSize, pageToken, orderBy, where, mask, max } = req;
   if (!action) return json(400, { error: "action is required" });
-  const isDiag = action === "databases" || action === "projects" || action === "collections" || action === "deleteDatabase" || action === "createDatabase" || action === "setRules" || action === "apiKeyTest" || action === "webConfig";
+  const isDiag = action === "databases" || action === "projects" || action === "collections" || action === "deleteDatabase" || action === "createDatabase" || action === "setRules" || action === "apiKeyTest" || action === "webConfig" || action === "enableFirestore";
   if (!isDiag) {
     if (!collection) return json(400, { error: "action and collection are required" });
     if (!/^[A-Za-z0-9_\/ -]+$/.test(collection)) return json(400, { error: "bad collection path" });
