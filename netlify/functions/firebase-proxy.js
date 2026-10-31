@@ -212,7 +212,7 @@ async function getWebConfig(projectId) {
 }
 
 // Which actions need the proxy key (server-only operations)
-const KEY_ACTIONS = new Set(["get", "list", "create", "update", "delete", "query", "setRules", "health", "addAuthDomain", "debugClaims"]);
+const KEY_ACTIONS = new Set(["get", "list", "create", "update", "delete", "query", "setRules", "health"]);
 
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return json(204, {});
@@ -375,55 +375,6 @@ exports.handler = async (event) => {
 
     // ---------- key-gated actions ----------
     if (action === "health") return json(200, { ok: true, projectId });
-
-    if (action === "debugClaims") {
-      const out = {};
-      const em = "sabi.claimtest.oct31@gmail.com";
-      const cr = await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${projectId}/accounts`, {
-        method: "POST", headers: { ...(await authz()), "Content-Type": "application/json" },
-        body: JSON.stringify({ email: em, password: "Temp-pass-1", emailVerified: true }),
-      });
-      out.createUser = { status: cr.status, body: (await cr.text()).slice(0, 200) };
-      let localId = null; try { localId = JSON.parse(out.createUser.body).localId; } catch (e) {}
-      if (localId) {
-        const sc = await setClaims(projectId, localId, { role: "editor" });
-        out.setClaims = { status: sc.status, body: JSON.stringify(sc.body).slice(0, 300) };
-        const cfg = await getWebConfig(projectId);
-        const si = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${cfg.apiKey}`, {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: em, password: "Temp-pass-1", returnSecureToken: true }),
-        });
-        const sd = await si.json().catch(() => ({}));
-        if (sd.idToken) {
-          const payload = JSON.parse(Buffer.from(sd.idToken.split(".")[1], "base64url").toString("utf8"));
-          out.tokenClaims = { role: payload.role || null, email_verified: payload.email_verified || false };
-        } else out.tokenClaims = { signInStatus: si.status };
-        const dr = await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${projectId}/accounts:delete`, {
-          method: "POST", headers: { ...(await authz()), "Content-Type": "application/json" },
-          body: JSON.stringify({ localId }),
-        });
-        out.delete = { status: dr.status };
-      }
-      return json(200, out);
-    }
-
-    if (action === "addAuthDomain") {
-      // Temporary one-time setup: merge domains into the authorized list so the
-      // Google popup works from the preview and production addresses.
-      const domains = (req.domains || []).filter((d) => /^[a-zA-Z0-9.-]+$/.test(d) && d.includes("."));
-      if (!domains.length) return json(400, { error: "no valid domains" });
-      const t = await getAccessToken();
-      const cr = await fetch(`https://identitytoolkit.googleapis.com/v2/projects/${projectId}/config`, { headers: { Authorization: `Bearer ${t}` } });
-      const cd = await cr.json().catch(() => ({}));
-      const current = cd.authorizedDomains || [];
-      const merged = Array.from(new Set([...current, ...domains]));
-      const pr = await fetch(`https://identitytoolkit.googleapis.com/v2/projects/${projectId}/config?updateMask=authorizedDomains`, {
-        method: "PATCH",
-        headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ authorizedDomains: merged }),
-      });
-      return json(pr.status, { ok: pr.ok, added: domains, total: merged.length, detail: pr.ok ? null : await pr.json().catch(() => ({})) });
-    }
 
     if (action === "setRules") {
       const rules = (req.rules || "").trim();
