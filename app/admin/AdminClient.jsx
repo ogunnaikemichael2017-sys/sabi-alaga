@@ -155,9 +155,18 @@ export default function AdminClient() {
     // No role yet: try the first-owner bootstrap (server decides who qualifies).
     const b = await post({ action: "bootstrapFirstOwner", idToken });
     if (b.status === 200) {
-      const w2 = await post({ action: "whoami", idToken });
-      setMe({ ...meNow, role: "owner", ...(w2.status === 200 ? w2.data : {}) });
-      setStage(meNow.mustChangePassword ? "changepass" : "authed");
+      // The claim only rides on tokens issued AFTER it was granted, so force a
+      // fresh token before asking who we are again.
+      let fresh = idToken;
+      try {
+        const u = window.firebase && window.firebase.auth().currentUser;
+        if (u) fresh = await u.getIdToken(true);
+      } catch (e) {}
+      await remember(fresh);
+      const w2 = await post({ action: "whoami", idToken: fresh });
+      const meOwner = { ...(w2.status === 200 ? w2.data : meNow), role: "owner" };
+      setMe(meOwner);
+      setStage(meOwner.mustChangePassword ? "changepass" : "authed");
       show("Owner access granted. You are the first owner of this site.", "ok");
       return;
     }
