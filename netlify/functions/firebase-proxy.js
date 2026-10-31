@@ -275,12 +275,16 @@ exports.handler = async (event) => {
     }
     if (action === "apiKeyTest") {
       const lr = await fetch(`https://apikeys.googleapis.com/v2/projects/${sa.project_id}/keys`, { headers: await authz() });
-      const ld = await lr.json();
-      const keys = (ld.keys || []).map((k) => k.name);
-      const out = { keyCount: keys.length, firestoreStatus: null, firestoreBody: null };
+      const lt = await lr.text();
+      let ld;
+      try { ld = JSON.parse(lt); } catch (e) { return json(200, { apikeysStatus: lr.status, apikeysBodyStart: lt.slice(0, 300) }); }
+      const keys = ((ld.keys || [])).map((k) => k.name);
+      const out = { apikeysStatus: lr.status, keyCount: keys.length, firestoreStatus: null, firestoreBody: null };
       if (keys.length) {
         const kr = await fetch(`https://apikeys.googleapis.com/v2/${keys[0]}:getKeyString`, { method: "POST", headers: { ...(await authz()), "Content-Type": "application/json" }, body: "{}" });
-        const kd = await kr.json();
+        const kt = await kr.text();
+        let kd;
+        try { kd = JSON.parse(kt); } catch (e) { return json(200, { getKeyStringStatus: kr.status, getKeyStringBodyStart: kt.slice(0, 300) }); }
         const keyString = kd.keyString || "";
         const fr = await fetch(`https://firestore.googleapis.com/v1/projects/${sa.project_id}/databases/(default)/documents/orders?key=${encodeURIComponent(keyString)}`);
         out.firestoreStatus = fr.status;
