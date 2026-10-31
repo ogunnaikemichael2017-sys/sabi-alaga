@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Editor from "./Editor";
 
 const API = "/.netlify/functions/firebase-proxy";
 const SDK = "https://www.gstatic.com/firebasejs/10.14.1";
@@ -305,8 +306,9 @@ export default function AdminClient() {
             <span className="sa-role">{roleLabel[me.role] || "No role"}</span>
             <p className="sa-note ok">
               {method === "google" ? "Signed in with Google" : "Signed in with email"}.
-              {me.role === "owner" ? " The section editor, media library and publishing tools arrive in the next build phases." : ""}
+              {me.role === "owner" ? " The media library and publishing tools arrive in the next build phases." : ""}
             </p>
+            <Editor me={me} />
             <div className="sa-panel">
               <h3>{me.hasPassword ? "Password" : "Set a password (optional)"}</h3>
               <form onSubmit={savePassword}>

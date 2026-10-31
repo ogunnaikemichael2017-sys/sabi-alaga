@@ -268,6 +268,81 @@ exports.handler = async (event) => {
       return json(200, { content: doc });
     }
 
+    // Save published site content (owner or editor). Writes content/{page}
+    // and leaves a version snapshot behind (last 20 kept).
+    if (action === "saveContent") {
+      const claims = await verifyIdToken(req.idToken, projectId);
+      if (!["owner", "editor"].includes(claims.role)) return json(403, { error: "your role cannot edit content" });
+      const page = String(req.page || "home").replace(/[^a-z0-9-]/gi, "") || "home";
+      const sections = Array.isArray(req.sections) ? req.sections : null;
+      if (!sections) return json(400, { error: "sections required" });
+      if (sections.length > 60) return json(400, { error: "too many sections" });
+      for (const sec of sections) {
+        if (!sec || typeof sec !== "object" || !sec.id || !sec.type || !sec.data || typeof sec.data !== "object") {
+          return json(400, { error: "each section needs id, type and data" });
+        }
+      }
+      const now = new Date().toISOString();
+      const doc = { page, updated: now, updatedBy: claims.email || claims.user_id || "", sections };
+      const path = `content/${page}`;
+      const fields = {};
+      for (const k of Object.keys(doc)) fields[k] = toFirestore(doc[k]);
+      const authz = await getAccessToken().then((t) => ({ Authorization: `Bearer ${t}`, "X-Goog-User-Project": projectId, "Content-Type": "application/json" }));
+      let r = await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/${path}?updateMask.fieldPaths=page&updateMask.fieldPaths=updated&updateMask.fieldPaths=updatedBy&updateMask.fieldPaths=sections`, {
+        method: "PATCH", headers: authz, body: JSON.stringify({ fields }),
+      });
+      if (r.status === 404) r = await docCreate(projectId, "content", doc, page);
+      if (!r.ok) return json(r.status, await r.json().catch(() => ({})));
+      // version snapshot with a simple last-20 cap
+      const vid = String(Date.now()) + "-" + Math.random().toString(36).slice(2, 8);
+      await docCreate(projectId, `${path}/versions`, { updated: now, by: claims.email || claims.user_id || "", sections }, vid);
+      try {
+        const q = await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents:runQuery`, {
+          method: "POST", headers: authz,
+          body: JSON.stringify({ structuredQuery: { from: [{ collectionId: "versions", allDescendants: true }], orderBy: [{ field: { fieldPath: "updated" }, direction: "DESCENDING" }], limit: 21 } }),
+        });
+        const rows = (await q.json()).filter((x) => x.document);
+        const extras = rows.slice(20);
+        for (const x of extras) {
+          await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/${x.document.name.split("/databases/(default)/documents/")[1]}`, { method: "DELETE", headers: { Authorization: authz.Authorization, "X-Goog-User-Project": projectId } });
+        }
+      } catch (e) {}
+      return json(200, { ok: true, updated: now, savedBy: doc.updatedBy });
+    }
+
+    // Ops: set a user's role by email (key holder only).
+    if (action === "setRole") {
+      const role = String(req.role || "");
+      if (!["owner", "editor", "contributor", "viewer"].includes(role)) return json(400, { error: "bad role" });
+      if (!req.email) return json(400, { error: "email required" });
+      const t = await getAccessToken();
+      const lr = await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${projectId}/accounts:lookup`, {
+        method: "POST", headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ email: [req.email] }),
+      });
+      const found = ((await lr.json().catch(() => ({}))) || {}).users || [];
+      if (!found.length) return json(404, { error: "no such user" });
+      const localId = found[0].localId;
+      const cr = await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${projectId}/accounts:update`, {
+        method: "POST", headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ localId, customAttributes: JSON.stringify({ ...(found[0].customAttributes || {}), role }) }),
+      });
+      if (!cr.ok) return json(cr.status, await cr.json().catch(() => ({})));
+      return json(200, { ok: true, role, email: req.email });
+    }
+
+    // Ops: delete a user account by uid (key holder only).
+    if (action === "deleteUser") {
+      if (!req.uid) return json(400, { error: "uid required" });
+      const t = await getAccessToken();
+      const dr = await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${projectId}/accounts:delete`, {
+        method: "POST", headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ localId: req.uid }),
+      });
+      if (!dr.ok) return json(dr.status, await dr.json().catch(() => ({})));
+      return json(200, { ok: true });
+    }
+
     if (action === "whoami") {
       const claims = await verifyIdToken(req.idToken, projectId);
       const t = await getAccessToken();
