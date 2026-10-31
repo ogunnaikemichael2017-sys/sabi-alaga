@@ -234,12 +234,15 @@ export default function AdminClient() {
   const roleLabel = { owner: "Owner", editor: "Editor", contributor: "Contributor", viewer: "Viewer" };
 
   return (
-    <main className="sa-admin">
+    <>
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@1,9..144,900&family=Figtree:wght@400;600;700&display=swap" />
+      <main className="sa-admin">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@1,9..144,600..900&display=swap');
-        .sa-admin{min-height:100vh;display:flex;align-items:center;justify-content:center;background:#F7F2E9;padding:24px;font-family:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif}
+        .sa-admin{min-height:100vh;display:flex;align-items:center;justify-content:center;background:#F7F2E9;padding:24px;font-family:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;font-synthesis:none}
         .sa-card{background:#fff;border:1px solid #E9E1D3;border-radius:16px;padding:34px 30px 26px;max-width:420px;width:100%;text-align:center;box-shadow:0 14px 40px rgba(23,18,58,.08)}
-        .sa-card h1{margin:0 0 8px;font-family:"Fraunces",Georgia,serif;font-style:italic;font-weight:900;font-size:34px;color:#17123A;letter-spacing:0;text-align:left}
+        .sa-card h1{margin:0 0 8px;font-family:"Fraunces",Georgia,serif;font-style:italic;font-weight:900;font-size:34px;color:#17123A;letter-spacing:0;text-align:left;font-synthesis:none}
         .sa-sub{margin:0 0 20px;color:#6b6478;font-size:14px;text-align:left}
         .sa-google{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;padding:12px;border:1.5px solid #17123A;border-radius:10px;background:#fff;color:#17123A;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit}
         .sa-google:hover{background:#f6f2ea}
@@ -357,5 +360,6 @@ export default function AdminClient() {
         )}
       </div>
     </main>
+    </>
   );
 }
