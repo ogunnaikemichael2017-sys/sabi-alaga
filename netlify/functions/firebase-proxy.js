@@ -439,7 +439,7 @@ exports.handler = async (event) => {
       if (!ROLES.includes(role)) return json(400, { error: `role must be one of ${ROLES.join(", ")}` });
       const upd = await setClaims(projectId, targetUid, { role });
       if (upd.status !== 200) return json(upd.status, { error: "could not set role", detail: upd.body });
-      await docUpsert(projectId, `meta/team/${targetUid}`, { role, status: "Active", updated: new Date().toISOString() });
+      await docUpsert(projectId, `team/${targetUid}`, { email: null, role, status: "Active", updated: new Date().toISOString() });
       return json(200, { ok: true, targetUid, role });
     }
 
@@ -487,7 +487,7 @@ exports.handler = async (event) => {
       const ld = await lr.json().catch(() => ({}));
       let localId = ((ld.users || [])[0] || {}).localId || null;
       if (!localId) {
-        const cr = await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${projectId}/accounts:signUp`, {
+        const cr = await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${projectId}/accounts`, {
           method: "POST",
           headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" },
           body: JSON.stringify({ email, password: tempPassword, emailVerified: true }),
@@ -505,8 +505,8 @@ exports.handler = async (event) => {
       }
       const upd = await setClaims(projectId, localId, { role, mustChangePassword: true });
       if (upd.status !== 200) return json(upd.status, { error: "could not set role", detail: upd.body });
-      const rec = await docCreate(projectId, "meta/invites", { email, role, invitedBy: caller.email || null, invitedAt: { __timestamp: new Date().toISOString() } }, email.replace(/\//g, "_"));
-      const teamRec = await docCreate(projectId, "meta/team", { email, role, status: "Invited", invitedBy: caller.email || null, invitedAt: { __timestamp: new Date().toISOString() } }, localId);
+      const rec = await docCreate(projectId, "invites", { email, role, invitedBy: caller.email || null, invitedAt: { __timestamp: new Date().toISOString() } }, email.replace(/[^A-Za-z0-9_.@-]/g, "_"));
+      const teamRec = await docCreate(projectId, "team", { email, role, status: "Invited", invitedBy: caller.email || null, invitedAt: { __timestamp: new Date().toISOString() } }, localId);
       return json(200, { ok: true, email, role, tempPassword, inviteRecord: rec.status, teamRecord: teamRec.status });
     }
 
@@ -647,7 +647,7 @@ exports.handler = async (event) => {
         method: "POST", headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" },
         body: JSON.stringify({ localId: targetUid }),
       });
-      await docDelete(projectId, `meta/team/${targetUid}`);
+      await docDelete(projectId, `team/${targetUid}`);
       return json(200, { ok: true, accountDeleted: dr.ok });
     }
 
