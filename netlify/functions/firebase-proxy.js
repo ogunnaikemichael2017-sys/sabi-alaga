@@ -178,7 +178,7 @@ const firstOwnerEmail = () => (process.env.FIRST_OWNER_EMAIL || FIRST_OWNER_FALL
 
 async function getWebConfig(projectId) {
   const now = Date.now();
-  if (cachedWebConfig && cachedWebConfig.exp > now) return cachedWebConfig.value;
+  if (cachedWebConfig && cachedWebConfig.exp > now && cachedWebConfig.value && cachedWebConfig.value.apiKey) return cachedWebConfig.value;
   const t = await getAccessToken();
   const r = await fetch(`https://firebase.googleapis.com/v1beta1/projects/${projectId}/webApps`, {
     headers: { Authorization: `Bearer ${t}` },
@@ -281,40 +281,29 @@ exports.handler = async (event) => {
     if (action === "health") return json(200, { ok: true, projectId });
 
     if (action === "setupAuth") {
-      // ONE-TIME bootstrap (diagnostic edition): inspect identitytoolkit config and API keys,
-      // attach a key to the web app if needed, then try enabling email/password.
+      // ONE-TIME bootstrap: enable the API Keys service, read the web app's key string,
+      // confirm email/password is enabled, then hand back the public web config.
       const t = await getAccessToken();
-      const cfgRes = await fetch(`https://identitytoolkit.googleapis.com/v2/projects/${projectId}/config`, { headers: { Authorization: `Bearer ${t}` } });
-      const cfgText = (await cfgRes.text()).slice(0, 800);
-      const kr = await fetch(`https://apikeys.googleapis.com/v2/projects/${projectId}/keys`, { headers: { Authorization: `Bearer ${t}` } });
-      const kt = (await kr.text()).slice(0, 600);
-      let keyNames = [];
-      try { keyNames = (JSON.parse(kt).keys || []).map((k) => k.name); } catch (e) {}
-      let keyString = null;
-      if (keyNames.length) {
-        const ks = await fetch(`https://apikeys.googleapis.com/v2/${keyNames[0]}:getKeyString`, { method: "POST", headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" }, body: "{}" });
-        const kd = await ks.json().catch(() => ({}));
-        keyString = kd.keyString || null;
-      }
-      // find the web app
-      const wr = await fetch(`https://firebase.googleapis.com/v1beta1/projects/${projectId}/webApps`, { headers: { Authorization: `Bearer ${t}` } });
+      const er = await fetch(`https://serviceusage.googleapis.com/v1/projects/${projectId}/services/apikeys.googleapis.com:enable`, {
+        method: "POST", headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" }, body: "{}",
+      });
+      const t2 = await getAccessToken();
+      const wr = await fetch(`https://firebase.googleapis.com/v1beta1/projects/${projectId}/webApps`, { headers: { Authorization: `Bearer ${t2}` } });
       const wd = await wr.json().catch(() => ({}));
       const app = (wd.apps || [])[0];
-      let appPatch = null;
-      if (app && !app.apiKeyId && keyNames.length) {
-        const keyId = keyNames[0].split("/").pop();
-        const pr = await fetch(`https://firebase.googleapis.com/v1beta1/${app.name}`, {
-          method: "PATCH",
-          headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ apiKeyId: keyId }),
+      let keyOut = { haveKeyId: app && app.apiKeyId ? true : false };
+      if (app && app.apiKeyId) {
+        const ks = await fetch(`https://apikeys.googleapis.com/v2/${app.name.replace(/webApps\//, "keys/")}:${"getKeyString"}`.replace(":getKeyString", "/keyString"), {
+          headers: { Authorization: `Bearer ${t2}` },
         });
-        appPatch = { status: pr.status, body: (await pr.text()).slice(0, 400) };
+        keyOut.keyStringStatus = ks.status;
+        keyOut.bodyStart = (await ks.text()).slice(0, 300);
       }
-      // retry config GET after possible linking
-      const cfg2 = await fetch(`https://identitytoolkit.googleapis.com/v2/projects/${projectId}/config`, { headers: { Authorization: `Bearer ${t}` } });
-      const cfg2Text = (await cfg2.text()).slice(0, 800);
+      const cfgRes = await fetch(`https://identitytoolkit.googleapis.com/v2/projects/${projectId}/config`, { headers: { Authorization: `Bearer ${t2}` } });
+      const cfgBody = JSON.parse((await cfgRes.text()) || "{}");
+      const emailEnabled = cfgBody && cfgBody.signIn && cfgBody.signIn.email && cfgBody.signIn.email.enabled;
       const cfg = await getWebConfig(projectId);
-      return json(200, { configBefore: { status: cfgRes.status, body: cfgText }, apiKeys: { status: kr.status, body: kt, names: keyNames }, keyStringMasked: keyString ? keyString.slice(0, 6) + "..." + keyString.slice(-4) : null, webApp: app ? { name: app.name, apiKeyId: app.apiKeyId || null } : null, appPatch, configAfter: { status: cfg2.status, body: cfg2Text }, webConfig: cfg });
+      return json(200, { apiKeyServiceEnabled: er.status, webApp: app ? { name: app.name, apiKeyId: app.apiKeyId || null } : null, keyOut, emailEnabled, webConfig: cfg && cfg.apiKey ? { ...cfg, apiKeyMasked: cfg.apiKey.slice(0, 6) + "..." + cfg.apiKey.slice(-4) } : cfg });
     }
 
     if (action === "setRules") {
