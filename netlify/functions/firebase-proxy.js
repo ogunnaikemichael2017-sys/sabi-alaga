@@ -649,7 +649,27 @@ exports.handler = async (event) => {
     if (action === "listTeam") {
       await verifyIdToken(req.idToken, projectId);
       const rows = await queryDocs(projectId, { from: [{ collectionId: "team", allDescendants: true }] });
-      return json(200, { team: rows.map((r) => ({ uid: r.id, ...r.doc })) });
+      const team = rows.map((r) => ({ uid: r.id, ...r.doc }));
+      if (!team.some((m) => m.role === "owner")) {
+        // The owner bootstrapped directly (no invite), so seed their row once.
+        const own = await docGet(projectId, "meta/owner");
+        let owner = null;
+        if (own.status === 200) owner = fromFirestore(own.body.fields || {});
+        if (!owner || !owner.email) {
+          const fb = process.env.FIRST_OWNER_EMAIL || "";
+          if (fb) owner = { uid: null, email: fb, role: "owner", status: "Active" };
+        }
+        if (owner && owner.email) {
+          const rec = { email: owner.email, role: "owner", status: "Active" };
+          if (owner.uid && /^[A-Za-z0-9_-]{10,64}$/.test(String(owner.uid))) {
+            await docUpsert(projectId, `team/${owner.uid}`, rec);
+            team.unshift({ uid: owner.uid, ...rec });
+          } else {
+            team.unshift({ uid: "owner", ...rec });
+          }
+        }
+      }
+      return json(200, { team });
     }
 
     if (action === "removeUser") {
@@ -724,7 +744,8 @@ exports.handler = async (event) => {
       arr = arr.includes(key) ? arr.filter((x) => x !== key) : arr.concat([key]).sort();
       const r = await docUpsert(projectId, "meta/blocked", { blocked: arr });
       if (r.status !== 200 && r.status !== 201) return json(r.status, r.body);
-      await logAct(projectId, arr.includes(key) ? "Blocked " + key : "Opened " + key);
+      const pretty = new Date(key + "T12:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+      await logAct(projectId, arr.includes(key) ? "Blocked " + pretty : "Opened " + pretty);
       return json(200, { ok: true, blocked: arr });
     }
 

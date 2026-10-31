@@ -101,7 +101,7 @@ export function Overview({ me, go }) {
         {d.activity.length === 0 && <div className="mut">No activity yet. Draft saves, uploads and publishes show up here.</div>}
         {d.activity.map((a, i) => (
           <div key={i} className="mut" style={{ padding: "5px 0" }}>
-            {a.text} &middot; {fmtWhen(a.when)}
+            {a.text}
           </div>
         ))}
       </div>
@@ -402,7 +402,7 @@ export function Enquiries({ me, toast }) {
   return (
     <div>
       <h2>Enquiries</h2>
-      <p className="mut">Every booking form submission lands here, and also opens WhatsApp for the couple.</p>
+      <p className="mut">Every booking form submission lands here and in her email.</p>
       {list.length === 0 && <p className="mut">No enquiries yet. When someone fills the booking form on the website, it appears here.</p>}
       {list.map((x) => (
         <div className="row" key={x.id}>
@@ -423,7 +423,6 @@ export function Enquiries({ me, toast }) {
         <h3 style={{ fontSize: 18 }}>Dates she is booked</h3>
         <p className="mut">Tap a date to block or open it. Blocked dates show as taken on the site.</p>
         <label style={{ width: "auto", maxWidth: 220 }}>
-          Month
           <select className="keep" style={{ width: "auto" }} value={month} onChange={(e) => setMonth(Number(e.target.value))}>
             <option value={11}>November 2026</option>
             <option value={12}>December 2026</option>
@@ -506,11 +505,7 @@ export function Team({ me, toast }) {
       <p className="mut">Invite helpers by email. They sign in with a password or Google using that same email, and get the role you choose.</p>
       {team.map((m) => (
         <div className="row" key={m.uid}>
-          <span className="nm">
-            {m.email}
-            <br />
-            <span className="mut">{ROLE_DESC[m.role] ? ROLE_DESC[m.role].split(":")[1].trim() : ""}</span>
-          </span>
+          <span className="nm">{m.email}</span>
           <span className={"pill " + (m.status === "Invited" ? "w" : "ok")}>{m.status || "Active"}</span>
           {m.role === "owner" ? (
             <span className="pill f">owner</span>
