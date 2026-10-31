@@ -198,28 +198,16 @@ export function Media({ me, toast }) {
   const [busy, setBusy] = useState(false);
   const [mf, setMf] = useState("all");
   const [uf, setUf] = useState("");
+  const [preview, setPreview] = useState(null);
   const canEdit = me && ["owner", "editor"].includes(me.role);
 
   async function load() {
-    const [m, p, cl] = await Promise.all([
+    const [m, p] = await Promise.all([
       post({ action: "listMedia", idToken: token() }),
       post({ action: "listPages", idToken: token() }),
-      post({ action: "cloudList", idToken: token() }),
     ]);
-    const saved = (m.data.items || []).map((x) => ({ ...x, f: x.f || "" }));
-    const cloud = cl.status === 200 && Array.isArray(cl.data.items) ? cl.data.items : [];
-    const pathKey = (u) => {
-      const mm = String(u || "").match(/\/upload\/(?:v\d+\/)?(.+)$/);
-      return mm ? mm[1] : "";
-    };
-    const have = new Set();
-    saved.forEach((x) => { have.add(x.id); const k = pathKey(x.url); if (k) have.add(k); });
-    const fresh = cloud
-      .filter((x) => x.id && !have.has(x.id) && !have.has(x.id + "." + (x.name.split(".").pop() || "")))
-      .map((x) => ({ ...x, alt: x.alt || "", f: x.f || "" }));
-    const list = saved.concat(fresh);
+    const list = (m.data.items || []).map((x) => ({ ...x, f: x.f || "" }));
     setItems(list);
-    if (fresh.length && canEdit) await post({ action: "saveMedia", idToken: token(), items: list });
     const ps = p.data.pages || [];
     setPages(ps);
     const byPage = {};
@@ -355,7 +343,9 @@ export function Media({ me, toast }) {
                   <div
                     className={"th" + (m.type === "video" ? " v" : "")}
                     style={m.url ? { backgroundImage: "url('" + (m.type === "video" ? vidThumb(m.url) : m.url) + "')" } : undefined}
-                  >
+                      onClick={() => setPreview(m)}
+                      title="Click to preview"
+                    >
                     {m.type === "video" ? (vidThumb(m.url) ? "" : "Video") : m.url ? "" : "Photo"}
                   </div>
                   <div className="b">
@@ -396,7 +386,9 @@ export function Media({ me, toast }) {
                 <div
                   className={"th" + (m.type === "video" ? " v" : "")}
                   style={m.url ? { backgroundImage: "url('" + (m.type === "video" ? vidThumb(m.url) : m.url) + "')" } : undefined}
-                >
+                    onClick={() => setPreview(m)}
+                    title="Click to preview"
+                  >
                   {m.type === "video" ? (vidThumb(m.url) ? "" : "Video") : m.url ? "" : "Photo"}
                 </div>
                 <div className="b">
@@ -414,6 +406,22 @@ export function Media({ me, toast }) {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+      {preview && (
+        <div className="modal" onClick={() => setPreview(null)}>
+          <div className="card" style={{ maxWidth: 720, width: "100%" }} onClick={(e) => e.stopPropagation()}>
+            {preview.type === "video" ? (
+              <video src={preview.url} controls autoPlay muted loop playsInline style={{ width: "100%", borderRadius: 12, background: "#000", display: "block" }} />
+            ) : (
+              <img src={preview.url} alt={preview.alt || preview.name} style={{ width: "100%", borderRadius: 12, display: "block" }} />
+            )}
+            <p style={{ margin: "10px 0 12px" }}>
+              <b>{preview.name}</b> <span className="mut">{kbText(preview.kb)}</span>
+              {preview.type === "video" && preview.kb > 20000 && <> <span className="pill f">Too heavy</span></>}
+            </p>
+            <button className="btn s" type="button" onClick={() => setPreview(null)}>Close</button>
           </div>
         </div>
       )}
