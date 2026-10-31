@@ -1,7 +1,7 @@
 // Firebase backend proxy for The Sabi Alaga.
 // Phase 1 (auth & roles): hardened rebuild.
 //  - Key-gated Firestore data actions + setRules (SABI_PROXY_KEY, sha256 + timingSafeEqual).
-//  - Open actions that verify a Firebase ID token instead: publicConfig, whoami,
+//  - Open actions that verify a Firebase ID token instead: publicConfig, publicContent, whoami,
 //    bootstrapFirstOwner, setUserRole. No secrets ever reach the client.
 //  - Diagnostic / project-mutation actions (enableFirestore, createDatabase, deleteDatabase,
 //    projects, databases, collections, apiKeyTest, webConfig/orders tests) are gone.
@@ -252,6 +252,16 @@ exports.handler = async (event) => {
       const owner = await docGet(projectId, "meta/owner");
       const ownerClaimed = owner.status === 200;
       return json(200, { projectId: cfg.projectId, apiKey: cfg.apiKey, authDomain: cfg.authDomain, ownerClaimed });
+    }
+
+    // Published site content: readable by anyone, so the built site can pull it
+    // at build time without a key. Serves content/home only.
+    if (action === "publicContent") {
+      const page = String(req.page || "home").replace(/[^a-z0-9-]/gi, "") || "home";
+      const r = await docGet(projectId, `content/${page}`);
+      if (r.status !== 200) return json(200, { content: null });
+      const doc = fromFirestore(r.body.fields || {});
+      return json(200, { content: doc });
     }
 
     if (action === "whoami") {

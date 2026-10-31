@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { DEFAULTS } from "../lib/content";
 
 const STATS = [
   { v: 5, d: 0, s: "", l: "years hosting" },
@@ -37,24 +38,23 @@ function Stat({ s }) {
   return <div ref={box}><b>{fmt}{s.s}</b>{s.l}</div>;
 }
 
-export default function About() {
+export default function About({ data }) {
+  const d = { ...DEFAULTS.about, ...data };
   return (
     <section className="scrub">
       <div className="wrap ab">
         <div className="por">
           <img
-            src="https://res.cloudinary.com/di4dlnd5x/image/upload/v1793345867/sabi-alaga/images/sabi-portrait.jpg"
-            alt="Sabi in a green lace outfit, standing beside The Sabi Alaga sign"
+            src={d.img}
+            alt={d.imgAlt}
             width="715"
             height="867"
             loading="lazy"
           />
         </div>
         <div>
-          <h2>Hello, I&rsquo;m Sabi</h2>
-          <p style={{ maxWidth: "32em" }}>
-            From the first knock on the gate to the last dance, I stand between two families and keep love, laughter and respect flowing. For 5 years I have hosted introductions, engagements and traditional weddings across Lagos and Ibadan: the dobale, the prayers, the eru iyawo, the geles. Every family is treated like my own, so from the moment I pick up the microphone, your people can relax and simply enjoy their day.
-          </p>
+          <h2>{d.title}</h2>
+          <p style={{ maxWidth: "32em" }}>{d.story}</p>
           <div className="stats">
             {STATS.map((s, i) => <Stat s={s} key={i} />)}
           </div>

@@ -1,23 +1,21 @@
-export default function Shop() {
+import { DEFAULTS } from "../lib/content";
+
+export default function Shop({ data }) {
+  const d = { ...DEFAULTS.shop, ...data };
   return (
     <section className="shop" id="shop">
       <div className="wrap">
-        <h2>Add the finishing touches</h2>
+        <h2>{d.title}</h2>
         <div className="grid">
-          <article>
-            <img src="https://res.cloudinary.com/di4dlnd5x/image/upload/v1793345866/sabi-alaga/images/product-jewelry.jpg" alt="A pearl and crystal bridal jewelry set on a display bust" loading="lazy" />
-            <div className="tx">
-              <h3>Jewelry by Saysay</h3>
-              <p>Pearl and crystal bridal sets from my jewelry plug, Saysay. Message me on WhatsApp to ask what is available for your date.</p>
-            </div>
-          </article>
-          <article>
-            <img src="https://res.cloudinary.com/di4dlnd5x/image/upload/v1793345867/sabi-alaga/images/product-trunk.jpg" alt="A styled display of wrapped gift trunks, fruit crates and coolers" loading="lazy" />
-            <div className="tx">
-              <h3>Eru iyawo packages</h3>
-              <p>Trunks, boxes and crates of gifts for your engagement, sourced, wrapped and styled for you.</p>
-            </div>
-          </article>
+          {(d.cards || []).map((c, i) => (
+            <article key={i}>
+              <img src={c.img} alt={c.alt || c.h} loading="lazy" />
+              <div className="tx">
+                <h3>{c.h}</h3>
+                <p>{c.p}</p>
+              </div>
+            </article>
+          ))}
         </div>
       </div>
     </section>

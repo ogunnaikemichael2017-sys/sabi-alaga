@@ -1,21 +1,13 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { DEFAULTS } from "../lib/content";
 
-const CARDS = [
-  { i: "https://res.cloudinary.com/di4dlnd5x/image/upload/v1793345873/sabi-alaga/images/tst-1.jpg", a: "Real client message: your talent, energy and vibes are unmatched. You made the event so lively and enjoyable." },
-  { i: "https://res.cloudinary.com/di4dlnd5x/image/upload/v1793345874/sabi-alaga/images/tst-2.jpg", a: "Real client message: you outdid yourself considering the short notice. You bad my sabi Alaga." },
-  { i: "https://res.cloudinary.com/di4dlnd5x/image/upload/v1793345875/sabi-alaga/images/tst-3.jpg", a: "Real client message: you did amazing and I am proud of you." },
-  { i: "https://res.cloudinary.com/di4dlnd5x/image/upload/v1793345876/sabi-alaga/images/tst-4.jpg", a: "Real client message from Eventbydaisy: you delivered very well, take your flowers." },
-  { i: "https://res.cloudinary.com/di4dlnd5x/image/upload/v1793345876/sabi-alaga/images/tst-5.jpg", a: "Real client message: even with all the ups and downs during the planning you were calm all through and your customer service is top notch. The Sabi Alaga to the world." },
-  { i: "https://res.cloudinary.com/di4dlnd5x/image/upload/v1793345877/sabi-alaga/images/tst-6.jpg", a: "Real client message: you helped me come out of my shell and made everyone feel comfortable. We are really glad we chose your service." },
-  { i: "https://res.cloudinary.com/di4dlnd5x/image/upload/v1793345877/sabi-alaga/images/tst-7.jpg", a: "Real client message from Decor_with_Dems: the way you handled the guests and kept the ceremony flowing was truly impressive." },
-];
 
-const BIG = "The bride literally wouldn\u2019t stop talking about you afterwards!";
 
-function BigWords() {
-  const words = BIG.split(" ");
+
+function BigWords({ text }) {
+  const words = text.split(" ");
   const parts = [];
   words.forEach((w, i) => {
     parts.push(<w-d key={i}>{w}</w-d>);
@@ -24,7 +16,10 @@ function BigWords() {
   return parts;
 }
 
-export default function Testimonials() {
+export default function Testimonials({ data }) {
+  const d = { ...DEFAULTS.testimonials, ...data };
+  const CARDS = d.cards || [];
+  const BIG = d.quote;
   const ref = useRef(null);
 
   useEffect(() => {
@@ -74,8 +69,8 @@ export default function Testimonials() {
   return (
     <section className="say">
       <div className="wrap">
-        <h2>What people say</h2>
-        <p className="big"><BigWords /></p>
+        <h2>{d.title}</h2>
+        <p className="big"><BigWords text={BIG} /></p>
         <b>Event decorator, Lagos</b>
         <div className="cf" aria-label="Real messages from past clients" ref={ref}>
           {CARDS.map((c, i) => (

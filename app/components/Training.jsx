@@ -1,18 +1,20 @@
-export default function Training() {
+import { DEFAULTS } from "../lib/content";
+
+export default function Training({ data }) {
+  const d = { ...DEFAULTS.training, ...data };
   return (
     <section className="tk" id="training">
       <div className="wrap">
         <div className="ticket">
           <div>
-            <h2>Train with me</h2>
-            <p style={{ maxWidth: "30em", color: "var(--muted)" }}>I will teach you the craft, the culture and the business of hosting, the same way I do it on stage. Small, hands-on classes. Join the waitlist and be the first to hear when my next class opens.</p>
-            <a className="btn gold" href="#book" style={{ borderColor: "var(--indigo)" }}>Join the waitlist</a>
+            <h2>{d.title}</h2>
+            <p style={{ maxWidth: "30em", color: "var(--muted)" }}>{d.text}</p>
+            <a className="btn gold" href="#book" style={{ borderColor: "var(--indigo)" }}>{d.btn}</a>
           </div>
           <ul>
-            <li>Hosting and stage presence</li>
-            <li>Traditions and protocols</li>
-            <li>Styling and presentation</li>
-            <li>Pricing and finding clients</li>
+            {(d.items || []).map((it, i) => (
+              <li key={i}>{it}</li>
+            ))}
           </ul>
         </div>
       </div>

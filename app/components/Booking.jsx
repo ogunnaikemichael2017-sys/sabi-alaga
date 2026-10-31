@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { DEFAULTS } from "../lib/content";
 
 const NUMBER = "2348089193663";
 
-export default function Booking() {
+export default function Booking({ data }) {
+  const d = { ...DEFAULTS.booking, ...data };
   const [f, setF] = useState({ n: "", t: "Traditional wedding", d: "", c: "", g: "" });
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const submit = (e) => {
@@ -16,8 +18,8 @@ export default function Booking() {
   return (
     <section className="book" id="book">
       <div className="wrap">
-        <h2>Save your date</h2>
-        <p className="sub">Tell me about your event. This opens WhatsApp with your details ready to send.</p>
+        <h2>{d.title}</h2>
+        <p className="sub">{d.intro}</p>
         <form onSubmit={submit} id="f">
           <label>Your name<input required autoComplete="name" value={f.n} onChange={set("n")} /></label>
           <label>Event type
