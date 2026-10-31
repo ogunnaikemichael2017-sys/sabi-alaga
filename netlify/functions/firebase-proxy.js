@@ -121,7 +121,7 @@ exports.handler = async (event) => {
   }
   const { action, collection, docId, data, pageSize, pageToken, orderBy, where, mask, max } = req;
   if (!action) return json(400, { error: "action is required" });
-  const isDiag = action === "databases" || action === "projects" || action === "collections" || action === "deleteDatabase" || action === "createDatabase" || action === "setRules" || action === "apiKeyTest";
+  const isDiag = action === "databases" || action === "projects" || action === "collections" || action === "deleteDatabase" || action === "createDatabase" || action === "setRules" || action === "apiKeyTest" || action === "webConfig";
   if (!isDiag) {
     if (!collection) return json(400, { error: "action and collection are required" });
     if (!/^[A-Za-z0-9_\/ -]+$/.test(collection)) return json(400, { error: "bad collection path" });
@@ -294,6 +294,23 @@ exports.handler = async (event) => {
         out.keysListError = ld;
       }
       return json(200, out);
+    }
+    if (action === "webConfig") {
+      const lr = await fetch(`https://firebase.googleapis.com/v1alpha/projects/${sa.project_id}/webApps`, { headers: await authz() });
+      const lt = await lr.text();
+      let ld;
+      try { ld = JSON.parse(lt); } catch (e) { return json(200, { webAppsStatus: lr.status, bodyStart: lt.slice(0, 200) }); }
+      const apps = (ld.apps || []).map((a) => a.name);
+      if (!apps.length) return json(200, { webAppsStatus: lr.status, apps: [] });
+      const cr = await fetch(`https://firebase.googleapis.com/v1alpha/${apps[0]}/config`, { headers: await authz() });
+      const ct = await cr.text();
+      let cd;
+      try { cd = JSON.parse(ct); } catch (e) { return json(200, { configStatus: cr.status, bodyStart: ct.slice(0, 200) }); }
+      const key = cd.apiKey || "";
+      const masked = key ? key.slice(0, 6) + "..." + key.slice(-4) : "(none)";
+      const fr = await fetch(`https://firestore.googleapis.com/v1/projects/${sa.project_id}/databases/(default)/documents/orders?key=${encodeURIComponent(key)}`);
+      const fd = await fr.json();
+      return json(200, { webApp: apps[0], apiKeyMasked: masked, firestoreStatus: fr.status, firestoreBody: fd.error ? { code: fd.error.code, message: fd.error.message, status: fd.error.status } : fd });
     }
     if (action === "projects") {
       const r = await fetch("https://cloudresourcemanager.googleapis.com/v1/projects?pageSize=100", { headers: await authz() });
