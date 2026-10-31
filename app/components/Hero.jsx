@@ -60,7 +60,7 @@ export default function Hero({ data }) {
     <header className="hero">
       <div className="wrap">
         <nav className="nav" aria-label="Main">
-          <a className="logo" href="#top" aria-label="The Sabi Alaga" onClick={logoTap}><img ref={logoRef} src="https://res.cloudinary.com/di4dlnd5x/image/upload/v1793345855/sabi-alaga/logo.png" alt="The Sabi Alaga" width="110" height="67" /></a>
+          <a className="logo" href="#top" aria-label="The Sabi Alaga" onClick={(e) => { e.preventDefault(); logoTap(); }}><img ref={logoRef} src="https://res.cloudinary.com/di4dlnd5x/image/upload/v1793345855/sabi-alaga/logo.png" alt="The Sabi Alaga" width="110" height="67" /></a>
           <a className="btn gold" href="#book">{d.btn}</a>
         </nav>
         <div className="hg" id="top">

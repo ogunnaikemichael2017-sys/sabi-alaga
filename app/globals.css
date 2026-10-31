@@ -19,8 +19,8 @@ a{color:inherit}
 .hero{background:var(--fuchsia);color:#fff;position:relative;overflow:hidden;
 background-image:radial-gradient(circle at 14px 14px,rgba(242,182,50,.35) 2.5px,transparent 3px),radial-gradient(circle at 42px 42px,rgba(20,21,74,.28) 4px,transparent 4.5px);background-size:56px 56px}
 .nav{display:flex;justify-content:space-between;align-items:center;padding:22px 0}
-.logo{font:900 22px var(--serif);text-decoration:none;letter-spacing:-.01em}
-.logo img{display:block;height:34px;width:auto}
+.logo{font:900 22px var(--serif);text-decoration:none;letter-spacing:-.01em;user-select:none;-webkit-user-select:none;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.logo img{display:block;height:40px;width:auto}
 .logo img{transform-origin:center}
 @media (prefers-reduced-motion:no-preference){.logo img.tappulse{animation:logotap .32s ease}}
 @keyframes logotap{0%{transform:scale(1)}45%{transform:scale(1.12)}100%{transform:scale(1)}}

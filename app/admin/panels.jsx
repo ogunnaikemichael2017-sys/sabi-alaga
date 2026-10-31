@@ -199,6 +199,9 @@ export function Media({ me, toast }) {
   const [mf, setMf] = useState("all");
   const [uf, setUf] = useState("");
   const [preview, setPreview] = useState(null);
+  const [editM, setEditM] = useState(null);
+  const [editAlt, setEditAlt] = useState("");
+  const [editF, setEditF] = useState("");
   const canEdit = me && ["owner", "editor"].includes(me.role);
 
   async function load() {
@@ -285,6 +288,15 @@ export function Media({ me, toast }) {
     const next = (items || []).map((x) => (x.id === id ? { ...x, f } : x));
     if (await persist(next)) { toast && toast("File moved"); addPending(1); }
   }
+  function openEdit(m) { setEditM(m); setEditAlt(m.alt || ""); setEditF(m.f || ""); }
+  async function saveEdit() {
+    const m = editM;
+    if (!m) return;
+    if (m.type !== "video" && editAlt !== (m.alt || "")) await setAlt(m.id, editAlt);
+    if (editF !== (m.f || "")) await moveTo(m.id, editF);
+    setEditM(null);
+    toast && toast("Saved");
+  }
   async function remove(id) {
     if (!canEdit || busy) return;
     setBusy(true);
@@ -353,23 +365,12 @@ export function Media({ me, toast }) {
                     {kbText(m.kb)}
                     {m.type === "video" && m.kb > 20000 && <> <span className="pill f">Too heavy</span></>}
                     {m.type !== "video" && !m.alt && <> <span className="pill w">Add alt text</span></>}
-                    {m.type !== "video" && (
-                      <input
-                        type="text"
-                        placeholder="Alt text"
-                        defaultValue={m.alt || ""}
-                        style={{ margin: "6px 0", padding: "6px 8px", fontSize: 12 }}
-                        onBlur={(e) => { if (e.target.value !== (m.alt || "")) setAlt(m.id, e.target.value); }}
-                      />
+                    {canEdit && (
+                      <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                        <button className="btn s" type="button" onClick={() => openEdit(m)}>Edit</button>
+                        <button className="btn s d" type="button" onClick={() => remove(m.id)}>Delete</button>
+                      </div>
                     )}
-                    <select
-                      value={m.f || ""}
-                      style={{ margin: "4px 0", padding: "5px 6px", fontSize: 12 }}
-                      onChange={(e) => moveTo(m.id, e.target.value)}
-                    >
-                      {fs.map((fo) => <option key={fo.id || "u"} value={fo.id}>Move to: {fo.label}</option>)}
-                    </select>
-                    {canEdit && <button className="btn s d" type="button" onClick={() => remove(m.id)}>Delete</button>}
                   </div>
                 </div>
               ))}
@@ -395,14 +396,12 @@ export function Media({ me, toast }) {
                   <b>{m.name}</b>
                   {kbText(m.kb)}
                   {m.type === "video" && m.kb > 20000 && <><span className="pill f">Too heavy</span></>}
-                  <select
-                    value={m.f || ""}
-                    style={{ margin: "4px 0", padding: "5px 6px", fontSize: 12 }}
-                    onChange={(e) => moveTo(m.id, e.target.value)}
-                  >
-                    {fs.map((fo) => <option key={fo.id || "u"} value={fo.id}>Move to: {fo.label}</option>)}
-                  </select>
-                  {canEdit && <button className="btn s d" type="button" onClick={() => remove(m.id)}>Delete</button>}
+                  {canEdit && (
+                    <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                      <button className="btn s" type="button" onClick={() => openEdit(m)}>Edit</button>
+                      <button className="btn s d" type="button" onClick={() => remove(m.id)}>Delete</button>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -422,6 +421,30 @@ export function Media({ me, toast }) {
               {preview.type === "video" && preview.kb > 20000 && <> <span className="pill f">Too heavy</span></>}
             </p>
             <button className="btn s" type="button" onClick={() => setPreview(null)}>Close</button>
+          </div>
+        </div>
+      )}
+      {editM && (
+        <div className="modal" onClick={() => setEditM(null)}>
+          <div className="card" style={{ maxWidth: 480, width: "100%" }} onClick={(e) => e.stopPropagation()}>
+            <h3>Edit media</h3>
+            <p className="mut">{editM.name} · {kbText(editM.kb)}</p>
+            {editM.type !== "video" && (
+              <label>
+                Alt text
+                <input type="text" value={editAlt} onChange={(e) => setEditAlt(e.target.value)} placeholder="Describe the photo for screen readers" />
+              </label>
+            )}
+            <label>
+              Section folder
+              <select value={editF} onChange={(e) => setEditF(e.target.value)}>
+                {fs.map((fo) => <option key={fo.id || "u"} value={fo.id}>{fo.label}</option>)}
+              </select>
+            </label>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button className="btn p" type="button" onClick={saveEdit}>Save</button>
+              <button className="btn s" type="button" onClick={() => setEditM(null)}>Cancel</button>
+            </div>
           </div>
         </div>
       )}

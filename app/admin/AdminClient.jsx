@@ -129,6 +129,7 @@ export default function AdminClient() {
   const [editPage, setEditPage] = useState("home");
   const [notice, setNotice] = useState("");
   const [viewAs, setViewAs] = useState("owner");
+  const [profOpen, setProfOpen] = useState(false);
   useEffect(() => {
     if (stage !== "authed") {
       document.body.style.backgroundColor = "#14154A";
@@ -425,20 +426,8 @@ export default function AdminClient() {
               <div className="top">
                 <b style={{ font: "italic 900 18px var(--serif)" }}>The Sabi Alaga</b>
                 <span className={"pill " + (pend ? "w" : "ok")}>{roleText}</span>
-                {me.role === "owner" && (
-                  <label className="viewas">
-                    View as
-                    <select className="keep" value={viewAs} onChange={(e) => setViewAs(e.target.value)}>
-                      <option value="owner">owner</option>
-                      <option value="editor">editor</option>
-                      <option value="contributor">contributor</option>
-                      <option value="viewer">viewer</option>
-                    </select>
-                  </label>
-                )}
                 <span className="sp" />
                 <button className="btn s keep" type="button" onClick={() => setModal({ t: "hist" })}>History</button>
-                <button className="btn s keep" type="button" onClick={() => window.open(window.location.origin, "_blank")}>Preview</button>
                 <button
                   className="btn s p"
                   type="button"
@@ -450,7 +439,22 @@ export default function AdminClient() {
                 >
                   {canPub ? "Publish" : "Request approval"}
                 </button>
-                <button className="btn s keep" type="button" onClick={signOut}>Sign out</button>
+                <div className="profwrap">
+                  <button className="avatar" type="button" aria-label="Account menu" onClick={() => setProfOpen(!profOpen)}>
+                    {String(me.name || me.email || "?").trim().charAt(0).toUpperCase()}
+                  </button>
+                  {profOpen && (
+                    <>
+                      <div className="profback" onClick={() => setProfOpen(false)} />
+                      <div className="promenu">
+                        <p style={{ margin: "0 0 4px" }}><b>{me.name || "Team member"}</b></p>
+                        <p className="mut" style={{ margin: "0 0 6px", wordBreak: "break-all" }}>{me.email}</p>
+                        <p style={{ margin: "0 0 10px" }}><span className={"pill " + (pend ? "w" : "ok")}>{roleText}</span></p>
+                        <button className="btn s keep" type="button" onClick={signOut}>Sign out</button>
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
               <main>
                 {tab === "overview" && <Overview me={me} go={setTab} />}
