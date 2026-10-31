@@ -98,20 +98,24 @@ function toFirestore(v) {
   }
   return { stringValue: String(v) };
 }
+function fromFirestoreValue(f) {
+  if (!f || typeof f !== "object") return f;
+  if ("stringValue" in f) return f.stringValue;
+  if ("integerValue" in f) return Number(f.integerValue);
+  if ("doubleValue" in f) return Number(f.doubleValue);
+  if ("booleanValue" in f) return f.booleanValue;
+  if ("timestampValue" in f) return f.timestampValue;
+  if ("nullValue" in f) return null;
+  if ("arrayValue" in f) return (f.arrayValue.values || []).map(fromFirestoreValue);
+  if ("mapValue" in f) return fromFirestore(f.mapValue.fields);
+  return f;
+}
 function fromFirestore(fields) {
   const out = {};
   if (!fields) return out;
   for (const [k, f] of Object.entries(fields)) {
     if (f === null || f === undefined) { out[k] = null; continue; }
-    if ("stringValue" in f) out[k] = f.stringValue;
-    else if ("integerValue" in f) out[k] = Number(f.integerValue);
-    else if ("doubleValue" in f) out[k] = Number(f.doubleValue);
-    else if ("booleanValue" in f) out[k] = f.booleanValue;
-    else if ("timestampValue" in f) out[k] = f.timestampValue;
-    else if ("nullValue" in f) out[k] = null;
-    else if ("arrayValue" in f) out[k] = (f.arrayValue.values || []).map((x) => fromFirestore(x.__x || x));
-    else if ("mapValue" in f) out[k] = fromFirestore(f.mapValue.fields);
-    else out[k] = f;
+    out[k] = fromFirestoreValue(f);
   }
   return out;
 }
