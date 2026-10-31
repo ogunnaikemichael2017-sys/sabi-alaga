@@ -212,7 +212,7 @@ async function getWebConfig(projectId) {
 }
 
 // Which actions need the proxy key (server-only operations)
-const KEY_ACTIONS = new Set(["get", "list", "create", "update", "delete", "query", "setRules", "health", "debugConfig"]);
+const KEY_ACTIONS = new Set(["get", "list", "create", "update", "delete", "query", "setRules", "health"]);
 
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return json(204, {});
@@ -295,25 +295,6 @@ exports.handler = async (event) => {
 
     // ---------- key-gated actions ----------
     if (action === "health") return json(200, { ok: true, projectId });
-
-    if (action === "debugConfig") {
-      const t = await getAccessToken();
-      const out = {};
-      const wr = await fetch(`https://firebase.googleapis.com/v1beta1/projects/${projectId}/webApps`, { headers: { Authorization: `Bearer ${t}` } });
-      out.webApps = { status: wr.status, body: (await wr.text()).slice(0, 700) };
-      const app = (() => { try { return (JSON.parse(out.webApps.body).apps || [])[0]; } catch (e) { return null; } })();
-      if (app) {
-        const wc = await fetch(`https://firebase.googleapis.com/v1beta1/${app.name}/webConfig`, { headers: { Authorization: `Bearer ${t}` } });
-        out.webConfig = { status: wc.status, body: (await wc.text()).slice(0, 700) };
-        if (app.apiKeyId) {
-          const ks = await fetch(`https://apikeys.googleapis.com/v2/projects/${projectId}/keys/${app.apiKeyId}:getKeyString`, {
-            method: "POST", headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" }, body: "{}",
-          });
-          out.getKeyString = { status: ks.status, body: (await ks.text()).slice(0, 700) };
-        } else out.getKeyString = { note: "no apiKeyId on web app" };
-      }
-      return json(200, out);
-    }
 
     if (action === "setRules") {
       const rules = (req.rules || "").trim();
