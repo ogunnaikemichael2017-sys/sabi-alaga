@@ -212,7 +212,7 @@ async function getWebConfig(projectId) {
 }
 
 // Which actions need the proxy key (server-only operations)
-const KEY_ACTIONS = new Set(["get", "list", "create", "update", "delete", "query", "setRules", "health"]);
+const KEY_ACTIONS = new Set(["get", "list", "create", "update", "delete", "query", "setRules", "health", "addAuthDomain"]);
 
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return json(204, {});
@@ -256,11 +256,25 @@ exports.handler = async (event) => {
 
     if (action === "whoami") {
       const claims = await verifyIdToken(req.idToken, projectId);
+      const t = await getAccessToken();
+      const lr = await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${projectId}/accounts:lookup`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ localId: claims.user_id }),
+      });
+      const ld = await lr.json().catch(() => ({}));
+      const u = (ld.users || [])[0] || {};
+      const providers = (u.providerUserInfo || []).map((x) => x.providerId);
+      const owner = await docGet(projectId, "meta/owner");
       return json(200, {
         uid: claims.user_id,
         email: claims.email || null,
-        emailVerified: !!claims.email_verified,
+        emailVerified: !!claims.email_verified || !!u.emailVerified,
         role: claims.role || null,
+        mustChangePassword: !!claims.mustChangePassword,
+        hasPassword: !!(u.passwordHash || providers.includes("password")),
+        providers,
+        ownerClaimed: owner.status === 200,
       });
     }
 
@@ -293,8 +307,92 @@ exports.handler = async (event) => {
       return json(200, { ok: true, targetUid, role });
     }
 
+    if (action === "setPassword") {
+      // Open action, self-service: sets or changes the caller's own password.
+      // Google-only users can add a password here; invited users clear their
+      // temporary password here. Requires 8+ characters.
+      const claims = await verifyIdToken(req.idToken, projectId);
+      const password = String(req.password || "");
+      if (password.length < 8) return json(400, { error: "weak password" });
+      const apiKey = (await getWebConfig(projectId)).apiKey;
+      const r = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:update?key=${apiKey}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken: req.idToken, password, returnSecureToken: true }),
+      });
+      if (!r.ok) return json(r.status, { error: "could not set password", detail: await r.json().catch(() => ({})) });
+      // Clear mustChangePassword, keep the role.
+      const attrs = {};
+      if (claims.role) attrs.role = claims.role;
+      const upd = await setClaims(projectId, claims.user_id, attrs);
+      return json(200, { ok: true, claimsUpdated: upd.status });
+    }
+
+    if (action === "inviteUser") {
+      // Owner-only: create or update an invited user with a temporary password.
+      // The invitee signs in with the temp password (or Google, if they prefer),
+      // then must set a permanent password in Settings before using the admin.
+      const caller = await verifyIdToken(req.idToken, projectId);
+      if (caller.role !== "owner") return json(403, { error: "only an owner can invite" });
+      const email = String(req.email || "").trim().toLowerCase();
+      const role = String(req.role || "");
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return json(400, { error: "bad email" });
+      if (!ROLES.includes(role) || role === "owner") return json(400, { error: "role must be editor, contributor or viewer" });
+      const alphabet = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+      const tempPassword = String(req.tempPassword || "") || Array.from({ length: 12 }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join("");
+      if (req.tempPassword && req.tempPassword.length < 8) return json(400, { error: "temp password too short" });
+      const t = await getAccessToken();
+      // Existing user?
+      const lr = await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${projectId}/accounts:lookup`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const ld = await lr.json().catch(() => ({}));
+      let localId = ((ld.users || [])[0] || {}).localId || null;
+      if (!localId) {
+        const cr = await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${projectId}/accounts:signUp`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password: tempPassword, emailVerified: true }),
+        });
+        const cd = await cr.json().catch(() => ({}));
+        if (!cr.ok) return json(cr.status, { error: "could not create invited user", detail: cd });
+        localId = cd.localId;
+      } else {
+        const ur = await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${projectId}/accounts:update`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ localId, password: tempPassword }),
+        });
+        if (!ur.ok) return json(ur.status, { error: "could not set the temporary password", detail: await ur.json().catch(() => ({})) });
+      }
+      const upd = await setClaims(projectId, localId, { role, mustChangePassword: true });
+      if (upd.status !== 200) return json(upd.status, { error: "could not set role", detail: upd.body });
+      const rec = await docCreate(projectId, "meta/invites", { email, role, invitedBy: caller.email || null, invitedAt: { __timestamp: new Date().toISOString() } }, email.replace(/\//g, "_"));
+      return json(200, { ok: true, email, role, tempPassword, inviteRecord: rec.status });
+    }
+
     // ---------- key-gated actions ----------
     if (action === "health") return json(200, { ok: true, projectId });
+
+    if (action === "addAuthDomain") {
+      // Temporary one-time setup: merge domains into the authorized list so the
+      // Google popup works from the preview and production addresses.
+      const domains = (req.domains || []).filter((d) => /^[a-zA-Z0-9.-]+$/.test(d) && d.includes("."));
+      if (!domains.length) return json(400, { error: "no valid domains" });
+      const t = await getAccessToken();
+      const cr = await fetch(`https://identitytoolkit.googleapis.com/v2/projects/${projectId}/config`, { headers: { Authorization: `Bearer ${t}` } });
+      const cd = await cr.json().catch(() => ({}));
+      const current = cd.authorizedDomains || [];
+      const merged = Array.from(new Set([...current, ...domains]));
+      const pr = await fetch(`https://identitytoolkit.googleapis.com/v2/projects/${projectId}/config?updateMask=authorizedDomains`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ authorizedDomains: merged }),
+      });
+      return json(pr.status, { ok: pr.ok, added: domains, total: merged.length, detail: pr.ok ? null : await pr.json().catch(() => ({})) });
+    }
 
     if (action === "setRules") {
       const rules = (req.rules || "").trim();
@@ -311,8 +409,6 @@ exports.handler = async (event) => {
         const r2 = await fetch(`https://firebaserules.googleapis.com/v1/projects/${projectId}/releases/cloud.firestore`, { method: "PATCH", headers: { ...(await authz()), "Content-Type": "application/json" }, body: JSON.stringify({ release: { name: `projects/${projectId}/releases/cloud.firestore`, rulesetName: rsName } }) });
         const d2b = await r2.json();
         return json(r2.status, { postError: postErr, ruleset: rsName, release: d2b });
-        const d2 = await r2.json();
-        return json(r2.status, { ruleset: rsName, release: d2 });
       }
       return json(200, { ruleset: rsName, release: d });
     }
