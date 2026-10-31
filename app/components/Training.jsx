@@ -4,8 +4,8 @@ export default function Training() {
       <div className="wrap">
         <div className="ticket">
           <div>
-            <h2>Learn to be an alaga</h2>
-            <p style={{ maxWidth: "30em", color: "var(--muted)" }}>Training from a working alaga on the craft, the culture and the business. Format, price and next start date to be confirmed.</p>
+            <h2>Train with me</h2>
+            <p style={{ maxWidth: "30em", color: "var(--muted)" }}>I will teach you the craft, the culture and the business of hosting, the same way I do it on stage. Small, hands-on classes. Join the waitlist and be the first to hear when my next class opens.</p>
             <a className="btn gold" href="#book" style={{ borderColor: "var(--indigo)" }}>Join the waitlist</a>
           </div>
           <ul>

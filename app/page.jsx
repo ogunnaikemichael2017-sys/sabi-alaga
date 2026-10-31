@@ -4,6 +4,7 @@ import Marquee from "./components/Marquee";
 import Services from "./components/Services";
 import Weddings from "./components/Weddings";
 import About from "./components/About";
+import Shop from "./components/Shop";
 import Testimonials from "./components/Testimonials";
 import Training from "./components/Training";
 import Booking from "./components/Booking";
@@ -20,6 +21,7 @@ export default function Page() {
       <Services />
       <Weddings />
       <About />
+      <Shop />
       <Testimonials />
       <Training />
       <Booking />

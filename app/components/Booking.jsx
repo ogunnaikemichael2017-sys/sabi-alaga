@@ -17,7 +17,7 @@ export default function Booking() {
     <section className="book" id="book">
       <div className="wrap">
         <h2>Save your date</h2>
-        <p className="sub">Tell her about your event. This opens WhatsApp with your details ready to send.</p>
+        <p className="sub">Tell me about your event. This opens WhatsApp with your details ready to send.</p>
         <form onSubmit={submit} id="f">
           <label>Your name<input required autoComplete="name" value={f.n} onChange={set("n")} /></label>
           <label>Event type
