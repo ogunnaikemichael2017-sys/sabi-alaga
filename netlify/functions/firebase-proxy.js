@@ -328,8 +328,8 @@ exports.handler = async (event) => {
       if (!r.ok) {
         const postErr = d;
         const r2 = await fetch(`https://firebaserules.googleapis.com/v1/projects/${projectId}/releases/cloud.firestore`, { method: "PATCH", headers: { ...(await authz()), "Content-Type": "application/json" }, body: JSON.stringify({ release: { name: `projects/${projectId}/releases/cloud.firestore`, rulesetName: rsName } }) });
-        const d2 = await r2.json();
-        return json(r2.status, { postError: postErr, ruleset: rsName, release: d2 });
+        const d2b = await r2.json();
+        return json(r2.status, { postError: postErr, ruleset: rsName, release: d2b });
         const d2 = await r2.json();
         return json(r2.status, { ruleset: rsName, release: d2 });
       }
