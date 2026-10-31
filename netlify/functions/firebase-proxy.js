@@ -212,7 +212,7 @@ async function getWebConfig(projectId) {
 }
 
 // Which actions need the proxy key (server-only operations)
-const KEY_ACTIONS = new Set(["get", "list", "create", "update", "delete", "query", "setRules", "health", "addAuthDomain"]);
+const KEY_ACTIONS = new Set(["get", "list", "create", "update", "delete", "query", "setRules", "health", "addAuthDomain", "debugClaims"]);
 
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return json(204, {});
@@ -375,6 +375,36 @@ exports.handler = async (event) => {
 
     // ---------- key-gated actions ----------
     if (action === "health") return json(200, { ok: true, projectId });
+
+    if (action === "debugClaims") {
+      const out = {};
+      const t = await getAccessToken();
+      const em = "sabi.claimtest.oct31@gmail.com";
+      const cr = await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${projectId}/accounts:signUp`, {
+        method: "POST", headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ email: em, password: "Temp-pass-1", emailVerified: true }),
+      });
+      out.signUp = { status: cr.status, body: (await cr.text()).slice(0, 300) };
+      let localId = null; try { localId = JSON.parse(out.signUp.body).localId; } catch (e) {}
+      if (localId) {
+        const br = await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${projectId}/accounts:batchUpdate`, {
+          method: "POST", headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ requests: [{ localId, customAttributes: JSON.stringify({ role: "editor" }) }] }),
+        });
+        out.batchUpdate = { status: br.status, body: (await br.text()).slice(0, 400) };
+        const lr = await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${projectId}/accounts:lookup`, {
+          method: "POST", headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ localId }),
+        });
+        out.lookup = { status: lr.status, body: (await lr.text()).slice(0, 400) };
+        const dr = await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${projectId}/accounts:delete`, {
+          method: "POST", headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ localId }),
+        });
+        out.delete = { status: dr.status, body: (await dr.text()).slice(0, 200) };
+      }
+      return json(200, out);
+    }
 
     if (action === "addAuthDomain") {
       // Temporary one-time setup: merge domains into the authorized list so the
