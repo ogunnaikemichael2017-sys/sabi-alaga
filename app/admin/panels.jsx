@@ -208,8 +208,15 @@ export function Media({ me, toast }) {
     ]);
     const saved = (m.data.items || []).map((x) => ({ ...x, f: x.f || "" }));
     const cloud = cl.status === 200 && Array.isArray(cl.data.items) ? cl.data.items : [];
-    const have = new Set(saved.map((x) => x.id));
-    const fresh = cloud.filter((x) => x.id && !have.has(x.id)).map((x) => ({ ...x, alt: x.alt || "", f: x.f || "" }));
+    const pathKey = (u) => {
+      const mm = String(u || "").match(/\/upload\/(?:v\d+\/)?(.+)$/);
+      return mm ? mm[1] : "";
+    };
+    const have = new Set();
+    saved.forEach((x) => { have.add(x.id); const k = pathKey(x.url); if (k) have.add(k); });
+    const fresh = cloud
+      .filter((x) => x.id && !have.has(x.id) && !have.has(x.id + "." + (x.name.split(".").pop() || "")))
+      .map((x) => ({ ...x, alt: x.alt || "", f: x.f || "" }));
     const list = saved.concat(fresh);
     setItems(list);
     if (fresh.length && canEdit) await post({ action: "saveMedia", idToken: token(), items: list });

@@ -582,7 +582,7 @@ exports.handler = async (event) => {
       if (!["owner", "editor"].includes(claims.role)) return json(403, { error: "your role cannot change the media library" });
       const items = Array.isArray(req.items) ? req.items : null;
       if (!items) return json(400, { error: "items required" });
-      if (items.length > 300) return json(400, { error: "too many items" });
+      if (items.length > 1000) return json(400, { error: "too many items" });
       const clean = items
         .map((it) => ({
           id: String((it && it.id) || "").slice(0, 64),
