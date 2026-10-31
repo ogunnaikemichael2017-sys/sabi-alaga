@@ -196,7 +196,7 @@ async function getWebConfig(projectId) {
 }
 
 // Which actions need the proxy key (server-only operations)
-const KEY_ACTIONS = new Set(["get", "list", "create", "update", "delete", "query", "setRules", "health"]);
+const KEY_ACTIONS = new Set(["get", "list", "create", "update", "delete", "query", "setRules", "health", "setupAuth"]);
 
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return json(204, {});
@@ -279,6 +279,34 @@ exports.handler = async (event) => {
 
     // ---------- key-gated actions ----------
     if (action === "health") return json(200, { ok: true, projectId });
+
+    if (action === "setupAuth") {
+      // ONE-TIME bootstrap: ensure a web app exists and email/password sign-in is enabled.
+      const t = await getAccessToken();
+      let lr = await fetch(`https://firebase.googleapis.com/v1alpha/projects/${projectId}/webApps`, { headers: { Authorization: `Bearer ${t}` } });
+      let ld = await lr.json().catch(() => ({}));
+      let apps = ld.apps || [];
+      if (!apps.length) {
+        const cr = await fetch(`https://firebase.googleapis.com/v1alpha/projects/${projectId}/webApps`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ displayName: "The Sabi Alaga web" }),
+        });
+        const cd = await cr.json().catch(() => ({}));
+        if (!cr.ok) return json(cr.status, { error: "could not create web app", detail: cd });
+        apps = [{ name: cd.name }];
+      }
+      // enable email/password provider
+      const cfgRes = await fetch(`https://identitytoolkit.googleapis.com/v2/projects/${projectId}/config`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ signIn: { allowDuplicateEmails: false, email: { enabled: true, passwordRequired: true } } }),
+      });
+      const cfgBody = await cfgRes.text();
+      const cfg = await getWebConfig(projectId);
+      return json(cfgRes.status === 200 ? 200 : cfgRes.status, { configUpdate: cfgRes.status, cfgBodyStart: cfgBody.slice(0, 300), webConfig: cfg });
+    }
+
 
     if (action === "setRules") {
       const rules = (req.rules || "").trim();
