@@ -1,3 +1,4 @@
+// env rebuilt for new Firebase project
 // Firestore proxy for The Sabi Alaga.
 // Auth: requests must carry header "x-proxy-key" matching SABI_PROXY_KEY.
 // Reads the Firebase service account from FIREBASE_SERVICE_JSON, signs a JWT,
