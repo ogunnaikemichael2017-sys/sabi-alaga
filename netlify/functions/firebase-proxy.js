@@ -281,32 +281,42 @@ exports.handler = async (event) => {
     if (action === "health") return json(200, { ok: true, projectId });
 
     if (action === "setupAuth") {
-      // ONE-TIME bootstrap: ensure a web app exists and email/password sign-in is enabled.
+      // ONE-TIME bootstrap: enable needed APIs, ensure a web app exists, enable email/password.
       const t = await getAccessToken();
-      let lr = await fetch(`https://firebase.googleapis.com/v1alpha/projects/${projectId}/webApps`, { headers: { Authorization: `Bearer ${t}` } });
-      let ld = await lr.json().catch(() => ({}));
-      let apps = ld.apps || [];
+      const enableSvc = async (svc) => {
+        const r = await fetch(`https://serviceusage.googleapis.com/v1/projects/${projectId}/services/${svc}:enable`, {
+          method: "POST", headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" }, body: "{}",
+        });
+        return { svc, status: r.status, body: (await r.text()).slice(0, 300) };
+      };
+      const enabled = [];
+      for (const sname of ["firebase.googleapis.com", "identitytoolkit.googleapis.com"]) {
+        try { enabled.push(await enableSvc(sname)); } catch (e) { enabled.push({ svc: sname, error: e.message }); }
+      }
+      const t2 = await getAccessToken();
+      let lr = await fetch(`https://firebase.googleapis.com/v1alpha/projects/${projectId}/webApps`, { headers: { Authorization: `Bearer ${t2}` } });
+      const listText = await lr.text();
+      let apps = [];
+      try { apps = (JSON.parse(listText).apps) || []; } catch (e) {}
+      let created = null;
       if (!apps.length) {
         const cr = await fetch(`https://firebase.googleapis.com/v1alpha/projects/${projectId}/webApps`, {
           method: "POST",
-          headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" },
+          headers: { Authorization: `Bearer ${t2}`, "Content-Type": "application/json" },
           body: JSON.stringify({ displayName: "The Sabi Alaga web" }),
         });
-        const cd = await cr.json().catch(() => ({}));
-        if (!cr.ok) return json(cr.status, { error: "could not create web app", detail: cd });
-        apps = [{ name: cd.name }];
+        created = { status: cr.status, body: (await cr.text()).slice(0, 500) };
+        try { apps = [{ name: JSON.parse(created.body).name }]; } catch (e) {}
       }
-      // enable email/password provider
       const cfgRes = await fetch(`https://identitytoolkit.googleapis.com/v2/projects/${projectId}/config`, {
         method: "PATCH",
-        headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" },
+        headers: { Authorization: `Bearer ${t2}`, "Content-Type": "application/json" },
         body: JSON.stringify({ signIn: { allowDuplicateEmails: false, email: { enabled: true, passwordRequired: true } } }),
       });
-      const cfgBody = await cfgRes.text();
+      const cfgText = (await cfgRes.text()).slice(0, 500);
       const cfg = await getWebConfig(projectId);
-      return json(cfgRes.status === 200 ? 200 : cfgRes.status, { configUpdate: cfgRes.status, cfgBodyStart: cfgBody.slice(0, 300), webConfig: cfg });
+      return json(200, { enabled, webAppsList: { status: lr.status, body: listText.slice(0, 300) }, created, configUpdate: { status: cfgRes.status, body: cfgText }, webConfig: cfg });
     }
-
 
     if (action === "setRules") {
       const rules = (req.rules || "").trim();
