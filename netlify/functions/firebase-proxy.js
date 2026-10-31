@@ -121,7 +121,7 @@ exports.handler = async (event) => {
   }
   const { action, collection, docId, data, pageSize, pageToken, orderBy, where, mask, max } = req;
   if (!action) return json(400, { error: "action is required" });
-  const isDiag = action === "databases" || action === "projects" || action === "collections" || action === "deleteDatabase" || action === "createDatabase";
+  const isDiag = action === "databases" || action === "projects" || action === "collections" || action === "deleteDatabase" || action === "createDatabase" || action === "setRules";
   if (!isDiag) {
     if (!collection) return json(400, { error: "action and collection are required" });
     if (!/^[A-Za-z0-9_\/ -]+$/.test(collection)) return json(400, { error: "bad collection path" });
@@ -253,6 +253,23 @@ exports.handler = async (event) => {
       const r = await fetch(`https://firestore.googleapis.com/v1/projects/${sa.project_id}/databases?databaseId=${encodeURIComponent(dbId)}`, { method: "POST", headers: { ...(await authz()), "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const d = await r.json();
       return json(r.status, d);
+    }
+    if (action === "setRules") {
+      const rules = (req.rules || "").trim();
+      if (!rules) return json(400, { error: "rules content is required" });
+      let r = await fetch(`https://firebaserules.googleapis.com/v1/projects/${sa.project_id}/rulesets`, { method: "POST", headers: { ...(await authz()), "Content-Type": "application/json" }, body: JSON.stringify({ source: { files: [{ name: "firestore.rules", content: rules }] } }) });
+      let d = await r.json();
+      if (!r.ok) return json(r.status, d);
+      const rsName = d.name;
+      const relBody = JSON.stringify({ name: `projects/${sa.project_id}/releases/cloud.firestore`, service: "firestore.googleapis.com", resourceName: rsName });
+      r = await fetch(`https://firebaserules.googleapis.com/v1/projects/${sa.project_id}/releases`, { method: "POST", headers: { ...(await authz()), "Content-Type": "application/json" }, body: relBody });
+      d = await r.json();
+      if (!r.ok) {
+        const r2 = await fetch(`https://firebaserules.googleapis.com/v1/projects/${sa.project_id}/releases/cloud.firestore`, { method: "PATCH", headers: { ...(await authz()), "Content-Type": "application/json" }, body: relBody });
+        const d2 = await r2.json();
+        return json(r2.status, { ruleset: rsName, release: d2 });
+      }
+      return json(200, { ruleset: rsName, release: d });
     }
     if (action === "projects") {
       const r = await fetch("https://cloudresourcemanager.googleapis.com/v1/projects?pageSize=100", { headers: await authz() });
