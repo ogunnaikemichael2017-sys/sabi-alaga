@@ -572,6 +572,7 @@ exports.handler = async (event) => {
           kb: Number(it && it.kb) || 0,
           url: String((it && it.url) || "").slice(0, 2048),
           alt: String((it && it.alt) || "").slice(0, 300),
+          f: String((it && it.f) || "").slice(0, 64),
         }))
         .filter((it) => it.id && it.url);
       const now = new Date().toISOString();

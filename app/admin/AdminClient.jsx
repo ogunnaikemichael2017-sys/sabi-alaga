@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Editor from "./Editor";
 import { Overview, Pages, Media, Enquiries, Team, Settings } from "./panels";
+import { loadPending, addPending, clearPending } from "./pending";
 
 const API = "/.netlify/functions/firebase-proxy";
 const SDK = "https://www.gstatic.com/firebasejs/10.14.1";
@@ -68,14 +69,15 @@ const G_ICON = (
   </svg>
 );
 
+const TABS = [
+  ["overview", "Overview"], ["sections", "Sections"], ["pages", "Pages"],
+  ["media", "Media"], ["enquiries", "Enquiries"], ["team", "Team"], ["settings", "Settings"],
+];
+
 export default function AdminClient() {
   const [stage, setStage] = useState("loading"); // loading | form | changepass | authed
   const [tab, setTab] = useState("overview");
   const [editPage, setEditPage] = useState("home");
-  const TABS = [
-    ["overview", "Overview"], ["sections", "Sections"], ["pages", "Pages"],
-    ["media", "Media"], ["enquiries", "Enquiries"], ["team", "Team"], ["settings", "Settings"],
-  ];
   const [notice, setNotice] = useState("");
   const [tone, setTone] = useState("");
   const [cfg, setCfg] = useState(null);
@@ -86,12 +88,27 @@ export default function AdminClient() {
   const [method, setMethod] = useState("");
   const [pw1, setPw1] = useState("");
   const [pw2, setPw2] = useState("");
+  const [pend, setPend] = useState(0);
+  const [modal, setModal] = useState(null); // {t:"hist"} | {t:"pub"}
+  const [toastMsg, setToastMsg] = useState("");
+  const [pages, setPages] = useState([]);
   const googleReady = useRef(null);
+  const toastTimer = useRef(null);
 
   const show = (text, kind) => {
     setNotice(text);
     setTone(kind || "");
   };
+
+  const toast = (msg) => {
+    setToastMsg(msg);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToastMsg(""), 2200);
+  };
+
+  useEffect(() => { setPend(loadPending()); }, []);
+
+  function bump() { setPend(addPending(1)); }
 
   async function boot() {
     try {
@@ -123,6 +140,15 @@ export default function AdminClient() {
     if (stage === "loading") boot();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (stage === "authed" && me) {
+      (async () => {
+        const r = await post({ action: "listPages", idToken: JSON.parse(localStorage.getItem("sa_admin") || "null").idToken });
+        if (r.status === 200) setPages(r.data.pages || []);
+      })();
+    }
+  }, [stage, me]);
 
   async function ensureGoogle() {
     if (googleReady.current) return googleReady.current;
@@ -248,110 +274,180 @@ export default function AdminClient() {
     setPassword("");
   }
 
-  const roleLabel = { owner: "Owner", editor: "Editor", contributor: "Contributor", viewer: "Viewer" };
+  async function doPublish() {
+    setModal(null);
+    const saved = JSON.parse(localStorage.getItem("sa_admin") || "null");
+    const r = await post({ action: "publish", idToken: saved && saved.idToken });
+    if (r.status === 200) {
+      setPend(clearPending());
+      toast("Publish started. The live website updates in 2 to 3 minutes.");
+    } else {
+      toast(r.data.error === "build hook is not configured" ? "Publish is not wired up yet." : (r.data.error || "Publish failed. Try again."));
+    }
+  }
+
+  const canEdit = me && ["owner", "editor"].includes(me.role);
+  const canPub = canEdit;
+  const roleText = pend
+    ? "Draft: " + pend + " unpublished change" + (pend === 1 ? "" : "s")
+    : "Live: up to date";
 
   return (
-    <>
-      <main className="sa-admin">
-      <div className="sa-card">
-        {stage === "loading" && <p className="sa-sub">Loading&hellip;</p>}
+    <div className="sa-admin-root">
+      {stage !== "authed" && (
+        <main className="login">
+          <div className="card">
+            {stage === "loading" && <p className="mut">Loading&hellip;</p>}
 
-        {stage === "form" && (
-          <>
-            <h1>Sabi Alaga admin</h1>
-            <p className="sa-sub">Manage your website without calling a developer.</p>
-            <button className="sa-google" disabled={busy || !cfg} onClick={onGoogle}>
-              {G_ICON} Continue with Google
-            </button>
-            <div className="sa-or">or use your email</div>
-            <div className="sa-field">
-              <label htmlFor="sa-email">Email</label>
-              <input id="sa-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
-            </div>
-            <div className="sa-field">
-              <label htmlFor="sa-pass">Password</label>
-              <input
-                id="sa-pass"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="current-password"
-                onKeyDown={(e) => { if (e.key === "Enter" && !busy) onSubmit("signIn"); }}
-              />
-            </div>
-            <button className="sa-btn sa-primary" disabled={busy || !email || !password} onClick={() => onSubmit("signIn")}>
-              {busy ? "Working…" : "Sign in"}
-            </button>
-            <p className={notice ? `sa-note ${tone}` : "sa-note sa-hint"} role="status">{notice || " "}</p>
-            {cfg && cfg.ownerClaimed === false ? (
-              <p className="sa-foot">First run: create the account with your email and you become the owner.</p>
-            ) : (
-              <p className="sa-foot">Only invited emails can sign in. Forgot your password? Reset by email.</p>
-            )}
-            {cfg && cfg.ownerClaimed === false && (
-              <button className="sa-btn sa-ghost" disabled={busy || !email || password.length < 6} onClick={() => onSubmit("signUp")}>
-                Create account
-              </button>
-            )}
-          </>
-        )}
-
-        {stage === "changepass" && (
-          <>
-            <h1>One more step</h1>
-            <p className="sa-sub">This account still uses a temporary password. Choose your own permanent password to continue.</p>
-            <form onSubmit={savePassword}>
-              <div className="sa-field">
-                <label htmlFor="sa-pw1">New permanent password</label>
-                <input id="sa-pw1" type="password" value={pw1} onChange={(e) => setPw1(e.target.value)} autoComplete="new-password" />
-              </div>
-              <div className="sa-field">
-                <label htmlFor="sa-pw2">Repeat it</label>
-                <input id="sa-pw2" type="password" value={pw2} onChange={(e) => setPw2(e.target.value)} autoComplete="new-password" />
-              </div>
-              <button className="sa-btn sa-primary" disabled={busy} type="submit">Save password and continue</button>
-            </form>
-            <p className={`sa-note ${tone}`} role="status">{notice}</p>
-          </>
-        )}
-
-        {stage === "authed" && me && (
-          <>
-            <div className="sa-topbar">
-              <div>
+            {stage === "form" && (
+              <>
                 <h1>Sabi Alaga admin</h1>
-                <p className="sa-sub">{me.email} &middot; {method === "google" ? "Google sign-in" : "Email sign-in"}</p>
-              </div>
-              <span className="sa-role">{roleLabel[me.role] || "No role"}</span>
-            </div>
-            <nav className="sa-tabs">
+                <p className="mut">Manage your website without calling a developer.</p>
+                <button className="btn" disabled={busy || !cfg} onClick={onGoogle} style={{ width: "100%", marginBottom: 6 }}>
+                  {G_ICON} Continue with Google
+                </button>
+                <div className="sep">or use your email</div>
+                <label>Email
+                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
+                </label>
+                <label>Password
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    autoComplete="current-password"
+                    onKeyDown={(e) => { if (e.key === "Enter" && !busy) onSubmit("signIn"); }}
+                  />
+                </label>
+                <button className="btn p" disabled={busy || !email || !password} onClick={() => onSubmit("signIn")} style={{ width: "100%" }}>
+                  {busy ? "Working\u2026" : "Sign in"}
+                </button>
+                <p className="mut" style={{ margin: "12px 0 0", fontSize: 12, color: tone === "bad" ? "var(--fuchsia)" : undefined }} role="status">
+                  {notice || "Only invited emails can sign in. Forgot your password? Reset by email."}
+                </p>
+                {notice && <p className="mut" style={{ margin: "4px 0 0", fontSize: 12 }}>Only invited emails can sign in. Forgot your password? Reset by email.</p>}
+                {cfg && cfg.ownerClaimed === false && (
+                  <button className="btn" disabled={busy || !email || password.length < 6} onClick={() => onSubmit("signUp")} style={{ width: "100%", marginTop: 10 }}>
+                    Create account
+                  </button>
+                )}
+              </>
+            )}
+
+            {stage === "changepass" && (
+              <>
+                <h1>One more step</h1>
+                <p className="mut">This account still uses a temporary password. Choose your own permanent password to continue.</p>
+                <form onSubmit={savePassword}>
+                  <label>New permanent password
+                    <input type="password" value={pw1} onChange={(e) => setPw1(e.target.value)} autoComplete="new-password" />
+                  </label>
+                  <label>Repeat it
+                    <input type="password" value={pw2} onChange={(e) => setPw2(e.target.value)} autoComplete="new-password" />
+                  </label>
+                  <button className="btn p" disabled={busy} type="submit" style={{ width: "100%" }}>Save password and continue</button>
+                </form>
+                <p className="mut" style={{ margin: "12px 0 0", fontSize: 12, color: tone === "bad" ? "var(--fuchsia)" : undefined }} role="status">{notice}</p>
+              </>
+            )}
+          </div>
+        </main>
+      )}
+
+      {stage === "authed" && me && (
+        <>
+          <div className={"shell" + (canEdit ? "" : " ro")}>
+            <nav className="side">
+              <div className="lg">Admin</div>
               {TABS.map(([id, label]) => (
-                <button key={id} type="button" className={"sa-tab" + (tab === id ? " on" : "")} onClick={() => setTab(id)}>
+                <button key={id} type="button" className={"keep" + (tab === id ? " on" : "")} onClick={() => { setTab(id); }}>
                   {label}
                 </button>
               ))}
             </nav>
-            {tab === "overview" && <Overview me={me} go={setTab} />}
-            {tab === "sections" && <Editor me={me} page={editPage} onPageChange={setEditPage} />}
-            {tab === "pages" && <Pages me={me} onOpen={(slug) => { setEditPage(slug); setTab("sections"); }} />}
-            {tab === "media" && <Media me={me} />}
-            {tab === "enquiries" && <Enquiries me={me} />}
-            {tab === "team" && <Team me={me} />}
-            {tab === "settings" && (
-              <Settings
-                me={me}
-                onSavePassword={savePassword}
-                onSignOut={signOut}
-                busy={busy}
-                pw1={pw1} setPw1={setPw1}
-                pw2={pw2} setPw2={setPw2}
-              />
-            )}
-            <p className={`sa-note ${tone}`} role="status">{notice}</p>
-          </>
-        )}
-      </div>
-    </main>
-    </>
+            <div>
+              <div className="top">
+                <b style={{ font: "italic 900 18px var(--serif)" }}>The Sabi Alaga</b>
+                <span className={"pill " + (pend ? "w" : "ok")}>{roleText}</span>
+                <span className="sp" />
+                <button className="btn s keep" type="button" onClick={() => setModal({ t: "hist" })}>History</button>
+                <button className="btn s keep" type="button" onClick={() => window.open(window.location.origin, "_blank")}>Preview</button>
+                <button
+                  className="btn s p"
+                  type="button"
+                  disabled={!pend && canPub}
+                  onClick={() => {
+                    if (!canPub) { setModal({ t: "req" }); return; }
+                    setModal({ t: "pub" });
+                  }}
+                >
+                  {canPub ? "Publish" : "Request approval"}
+                </button>
+                <button className="btn s keep" type="button" onClick={signOut}>Sign out</button>
+              </div>
+              <main>
+                {tab === "overview" && <Overview me={me} go={setTab} />}
+                {tab === "sections" && <Editor me={me} page={editPage} onPageChange={setEditPage} toast={toast} />}
+                {tab === "pages" && <Pages me={me} onOpen={(slug) => { setEditPage(slug); setTab("sections"); }} toast={toast} />}
+                {tab === "media" && <Media me={me} toast={toast} />}
+                {tab === "enquiries" && <Enquiries me={me} toast={toast} />}
+                {tab === "team" && <Team me={me} toast={toast} />}
+                {tab === "settings" && (
+                  <Settings me={me} onSavePassword={savePassword} busy={busy} pw1={pw1} setPw1={setPw1} pw2={pw2} setPw2={setPw2} />
+                )}
+                {notice && tab !== "sections" && <p className="mut" style={{ marginTop: 10, color: tone === "bad" ? "var(--fuchsia)" : undefined }} role="status">{notice}</p>}
+              </main>
+            </div>
+          </div>
+          <div className="tabbar">
+            {TABS.map(([id, label]) => (
+              <button key={id} type="button" className={"keep" + (tab === id ? " on" : "")} onClick={() => setTab(id)}>
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {modal && (modal.t === "hist" || modal.t === "pub" || modal.t === "req") && (
+            <div className="modal" onClick={() => setModal(null)}>
+              <div className="card" onClick={(e) => e.stopPropagation()}>
+                {modal.t === "hist" && (
+                  <>
+                    <h3>History</h3>
+                    <p className="mut">When each page was last saved. Version restore arrives with the versions step.</p>
+                    {pages.map((p) => (
+                      <div className="row" key={p.id}>
+                        <span className="nm">
+                          {p.title || p.id}
+                          <br />
+                          <span className="mut">{p.id === "home" ? "/" : "/" + p.id} &middot; {p.sectionCount} sections &middot; saved {p.updated ? new Date(p.updated).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "never"}</span>
+                        </span>
+                      </div>
+                    ))}
+                    <button className="btn" type="button" onClick={() => setModal(null)}>Close</button>
+                  </>
+                )}
+                {modal.t === "pub" && (
+                  <>
+                    <h3>Publish to the live site?</h3>
+                    <p className="mut">{pend} change{pend === 1 ? "" : "s"} will go live right away. The website updates in 2 to 3 minutes.</p>
+                    <button className="btn p" type="button" onClick={doPublish}>Publish now</button>{" "}
+                    <button className="btn" type="button" onClick={() => setModal(null)}>Cancel</button>
+                  </>
+                )}
+                {modal.t === "req" && (
+                  <>
+                    <h3>Request approval</h3>
+                    <p className="mut">Only the owner or an editor can publish. Ask them to press Publish when your draft is ready.</p>
+                    <button className="btn" type="button" onClick={() => setModal(null)}>Okay</button>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          {toastMsg && <div className="toast">{toastMsg}</div>}
+        </>
+      )}
+    </div>
   );
 }
