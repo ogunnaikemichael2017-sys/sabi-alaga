@@ -180,13 +180,13 @@ async function getWebConfig(projectId) {
   const now = Date.now();
   if (cachedWebConfig && cachedWebConfig.exp > now) return cachedWebConfig.value;
   const t = await getAccessToken();
-  const r = await fetch(`https://firebase.googleapis.com/v1alpha/projects/${projectId}/webApps`, {
+  const r = await fetch(`https://firebase.googleapis.com/v1beta1/projects/${projectId}/webApps`, {
     headers: { Authorization: `Bearer ${t}` },
   });
   const d = await r.json().catch(() => ({}));
   const apps = d.apps || [];
   if (!apps.length) return null;
-  const c = await fetch(`https://firebase.googleapis.com/v1alpha/${apps[0].name}/config`, {
+  const c = await fetch(`https://firebase.googleapis.com/v1beta1/${apps[0].name}/webConfig`, {
     headers: { Authorization: `Bearer ${t}` },
   });
   const cd = await c.json().catch(() => ({}));
@@ -294,13 +294,13 @@ exports.handler = async (event) => {
         try { enabled.push(await enableSvc(sname)); } catch (e) { enabled.push({ svc: sname, error: e.message }); }
       }
       const t2 = await getAccessToken();
-      let lr = await fetch(`https://firebase.googleapis.com/v1alpha/projects/${projectId}/webApps`, { headers: { Authorization: `Bearer ${t2}` } });
+      let lr = await fetch(`https://firebase.googleapis.com/v1beta1/projects/${projectId}/webApps`, { headers: { Authorization: `Bearer ${t2}` } });
       const listText = await lr.text();
       let apps = [];
       try { apps = (JSON.parse(listText).apps) || []; } catch (e) {}
       let created = null;
       if (!apps.length) {
-        const cr = await fetch(`https://firebase.googleapis.com/v1alpha/projects/${projectId}/webApps`, {
+        const cr = await fetch(`https://firebase.googleapis.com/v1beta1/projects/${projectId}/webApps`, {
           method: "POST",
           headers: { Authorization: `Bearer ${t2}`, "Content-Type": "application/json" },
           body: JSON.stringify({ displayName: "The Sabi Alaga web" }),
