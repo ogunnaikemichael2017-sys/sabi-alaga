@@ -313,6 +313,14 @@ exports.handler = async (event) => {
       const fd = await fr.json();
       return json(200, { webApp: apps[0], apiKeyMasked: masked, firestoreStatus: fr.status, firestoreBody: fd.error ? { code: fd.error.code, message: fd.error.message, status: fd.error.status } : fd });
     }
+    if (action === "enableFirestore") {
+      const url = `https://serviceusage.googleapis.com/v1/projects/${sa.project_id}/services/firestore.googleapis.com:enable`;
+      const r = await fetch(url, { method: "POST", headers: { ...(await authz()), "Content-Type": "application/json" }, body: "{}" });
+      const d = await r.text();
+      let out; try { out = JSON.parse(d); } catch (e) { out = d.slice(0, 500); }
+      return json(r.status, { serviceUsage: out, note: "API enable requested; may take a few minutes to propagate" });
+    }
+
     if (action === "projects") {
       const r = await fetch("https://cloudresourcemanager.googleapis.com/v1/projects?pageSize=100", { headers: await authz() });
       const d = await r.json();
