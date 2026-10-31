@@ -133,7 +133,7 @@ exports.handler = async (event) => {
     return json(500, { error: e.message });
   }
   const base = `https://firestore.googleapis.com/v1/projects/${sa.project_id}/databases/(default)/documents/${encodeURIComponent(collection)}`;
-  const authz = () => getAccessToken().then((t) => ({ Authorization: `Bearer ${t}` }));
+  const authz = () => getAccessToken().then((t) => ({ Authorization: `Bearer ${t}`, "X-Goog-User-Project": sa.project_id }));
 
   try {
     if (action === "get") {
@@ -261,7 +261,7 @@ exports.handler = async (event) => {
       let d = await r.json();
       if (!r.ok) return json(r.status, d);
       const rsName = d.name;
-      const relBody = JSON.stringify({ name: `projects/${sa.project_id}/releases/cloud.firestore`, service: "firestore.googleapis.com", resourceName: rsName });
+      const relBody = JSON.stringify({ name: `projects/${sa.project_id}/releases/cloud.firestore`, rulesetName: rsName });
       r = await fetch(`https://firebaserules.googleapis.com/v1/projects/${sa.project_id}/releases`, { method: "POST", headers: { ...(await authz()), "Content-Type": "application/json" }, body: relBody });
       d = await r.json();
       if (!r.ok) {
