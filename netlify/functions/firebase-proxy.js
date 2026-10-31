@@ -188,22 +188,24 @@ async function getWebConfig(projectId) {
   if (!apps.length) return null;
   const app = apps[0];
   let apiKey = "";
-  if (app.apiKeyId) {
-    const ks = await fetch(`https://apikeys.googleapis.com/v2/projects/${projectId}/keys/${app.apiKeyId}:getKeyString`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" },
-      body: "{}",
-    });
-    const kd = await ks.json().catch(() => ({}));
-    apiKey = kd.keyString || "";
-  }
   let authDomain = `${projectId}.firebaseapp.com`;
+  // Configuration artifact: projects.webApps/getConfig
   try {
-    const c = await fetch(`https://firebase.googleapis.com/v1beta1/${app.name}/webConfig`, { headers: { Authorization: `Bearer ${t}` } });
+    const c = await fetch(`https://firebase.googleapis.com/v1beta1/projects/${projectId}/webApps/${app.appId}/config`, { headers: { Authorization: `Bearer ${t}` } });
     const cd = await c.json().catch(() => ({}));
+    if (cd.apiKey) apiKey = cd.apiKey;
     if (cd.authDomain) authDomain = cd.authDomain;
-    if (!apiKey && cd.apiKey) apiKey = cd.apiKey;
   } catch (e) {}
+  // Fallback: read the key string straight from the API Keys service
+  if (!apiKey && app.apiKeyId) {
+    try {
+      const ks = await fetch(`https://apikeys.googleapis.com/v2/projects/${projectId}/locations/global/keys/${app.apiKeyId}/keyString`, {
+        headers: { Authorization: `Bearer ${t}` },
+      });
+      const kd = await ks.json().catch(() => ({}));
+      if (kd.keyString) apiKey = kd.keyString;
+    } catch (e) {}
+  }
   const value = { webApp: app.name, apiKey, authDomain, projectId };
   if (apiKey) cachedWebConfig = { value, exp: now + 10 * 60 * 1000 };
   return value;
