@@ -31,11 +31,30 @@ export default function Hero() {
     setM(!m);
     el.play().catch(() => {});
   };
+  const logoRef = useRef(null);
+  const taps = useRef(0);
+  const tapReset = useRef(null);
+  const logoTap = () => {
+    taps.current += 1;
+    const img = logoRef.current;
+    if (img) {
+      img.classList.remove("tappulse");
+      void img.offsetWidth;
+      img.classList.add("tappulse");
+    }
+    clearTimeout(tapReset.current);
+    if (taps.current >= 3) {
+      taps.current = 0;
+      window.location.assign("/admin");
+      return;
+    }
+    tapReset.current = setTimeout(() => { taps.current = 0; }, 2000);
+  };
   return (
     <header className="hero">
       <div className="wrap">
         <nav className="nav" aria-label="Main">
-          <a className="logo" href="#top" aria-label="The Sabi Alaga"><img src="https://res.cloudinary.com/di4dlnd5x/image/upload/v1793345855/sabi-alaga/logo.png" alt="The Sabi Alaga" width="110" height="67" /></a>
+          <a className="logo" href="#top" aria-label="The Sabi Alaga" onClick={logoTap}><img ref={logoRef} src="https://res.cloudinary.com/di4dlnd5x/image/upload/v1793345855/sabi-alaga/logo.png" alt="The Sabi Alaga" width="110" height="67" /></a>
           <a className="btn gold" href="#book">Check my date</a>
         </nav>
         <div className="hg" id="top">

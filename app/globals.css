@@ -21,6 +21,9 @@ background-image:radial-gradient(circle at 14px 14px,rgba(242,182,50,.35) 2.5px,
 .nav{display:flex;justify-content:space-between;align-items:center;padding:22px 0}
 .logo{font:900 22px var(--serif);text-decoration:none;letter-spacing:-.01em}
 .logo img{display:block;height:34px;width:auto}
+.logo img{transform-origin:center}
+@media (prefers-reduced-motion:no-preference){.logo img.tappulse{animation:logotap .32s ease}}
+@keyframes logotap{0%{transform:scale(1)}45%{transform:scale(1.12)}100%{transform:scale(1)}}
 .fi img{display:block;height:46px;width:auto;margin-bottom:6px}
 .nav .btn{padding:10px 20px;font-size:15px}
 .hg{display:grid;grid-template-columns:1.5fr .8fr;grid-template-areas:"t v" "c v";gap:30px;align-items:center;padding:30px 0 90px}
@@ -177,3 +180,10 @@ w-d{display:inline-block;white-space:nowrap}c-h{display:inline-block}
 
 @media (min-width:781px){.cf{--cw:390px}.cf.on{height:640px}}
 @media (max-width:780px){.hg .cta{flex-wrap:nowrap;gap:10px}.hg .cta .btn{flex:1;padding:13px 10px;font-size:15px;text-align:center;white-space:nowrap}}
+
+/* ADMIN GATE */
+.admingate{min-height:100svh;display:grid;place-items:center;background:var(--indigo);padding:24px}
+.admingate-card{text-align:center;max-width:360px}
+.admingate-card img{display:block;margin:0 auto 18px;height:56px;width:auto}
+.admingate-card h1{color:#F6EFE6;font-size:30px;margin:0 0 10px}
+.admingate-card p{color:#c3bfd9;margin:0;font-size:15px;line-height:1.55}
