@@ -15,7 +15,7 @@
 .sa-admin-root .viewas select{width:auto;min-width:96px;padding:6px 10px;border-radius:999px;font-weight:700}
 .sa-admin-root form{display:block;max-width:none;gap:0}
 .sa-admin-root :focus-visible{outline:3px solid var(--gold);outline-offset:2px}
-.btn{border:2px solid var(--indigo);background:var(--card);border-radius:999px;padding:9px 16px;font-weight:700;cursor:pointer;font-size:14px}
+.btn{border:2px solid var(--indigo);background:var(--card);color:var(--ink);border-radius:999px;padding:9px 16px;font-weight:700;cursor:pointer;font-size:14px}
 .btn.p{background:var(--fuchsia);border-color:var(--fuchsia);color:#fff}.btn.g{background:var(--gold);border-color:var(--gold);color:#14154A}
 .btn.s{padding:5px 11px;font-size:13px}.btn.d{border-color:var(--fuchsia);color:var(--fuchsia)}
 .btn:disabled{opacity:.4;cursor:not-allowed}
@@ -75,6 +75,10 @@ label.chk{display:flex;align-items:center;gap:8px}label.chk input{width:auto}
 .cal>button.x{background:var(--fuchsia);border-color:var(--fuchsia);color:#fff;text-decoration:line-through}
 
 /* Admin buttons: hover keeps their own colour, never white */
+/* Site row-hover must not leak into admin rows (it darkened rows and whitened text) */
+.sa-admin-root .row:hover{background:var(--card);color:var(--ink)}
+.sa-admin-root .row:hover p{color:var(--mut)}
+.sa-admin-root .row:hover a{color:var(--gold)}
 .sa-admin-root .btn:hover{background:var(--card);color:var(--ink);border-color:var(--indigo);transform:none}
 .sa-admin-root .btn.p:hover{background:var(--fuchsia);border-color:var(--fuchsia);color:#fff}
 .sa-admin-root .btn.g:hover{background:var(--gold);border-color:var(--gold);color:#14154A}
