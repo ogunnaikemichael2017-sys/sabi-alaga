@@ -186,17 +186,31 @@ async function getWebConfig(projectId) {
   const d = await r.json().catch(() => ({}));
   const apps = d.apps || [];
   if (!apps.length) return null;
-  const c = await fetch(`https://firebase.googleapis.com/v1beta1/${apps[0].name}/webConfig`, {
-    headers: { Authorization: `Bearer ${t}` },
-  });
-  const cd = await c.json().catch(() => ({}));
-  const value = { webApp: apps[0].name, apiKey: cd.apiKey || "", authDomain: cd.authDomain || `${projectId}.firebaseapp.com`, projectId };
-  cachedWebConfig = { value, exp: now + 10 * 60 * 1000 };
+  const app = apps[0];
+  let apiKey = "";
+  if (app.apiKeyId) {
+    const ks = await fetch(`https://apikeys.googleapis.com/v2/projects/${projectId}/keys/${app.apiKeyId}:getKeyString`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" },
+      body: "{}",
+    });
+    const kd = await ks.json().catch(() => ({}));
+    apiKey = kd.keyString || "";
+  }
+  let authDomain = `${projectId}.firebaseapp.com`;
+  try {
+    const c = await fetch(`https://firebase.googleapis.com/v1beta1/${app.name}/webConfig`, { headers: { Authorization: `Bearer ${t}` } });
+    const cd = await c.json().catch(() => ({}));
+    if (cd.authDomain) authDomain = cd.authDomain;
+    if (!apiKey && cd.apiKey) apiKey = cd.apiKey;
+  } catch (e) {}
+  const value = { webApp: app.name, apiKey, authDomain, projectId };
+  if (apiKey) cachedWebConfig = { value, exp: now + 10 * 60 * 1000 };
   return value;
 }
 
 // Which actions need the proxy key (server-only operations)
-const KEY_ACTIONS = new Set(["get", "list", "create", "update", "delete", "query", "setRules", "health", "setupAuth"]);
+const KEY_ACTIONS = new Set(["get", "list", "create", "update", "delete", "query", "setRules", "health"]);
 
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return json(204, {});
@@ -279,32 +293,6 @@ exports.handler = async (event) => {
 
     // ---------- key-gated actions ----------
     if (action === "health") return json(200, { ok: true, projectId });
-
-    if (action === "setupAuth") {
-      // ONE-TIME bootstrap: enable the API Keys service, read the web app's key string,
-      // confirm email/password is enabled, then hand back the public web config.
-      const t = await getAccessToken();
-      const er = await fetch(`https://serviceusage.googleapis.com/v1/projects/${projectId}/services/apikeys.googleapis.com:enable`, {
-        method: "POST", headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" }, body: "{}",
-      });
-      const t2 = await getAccessToken();
-      const wr = await fetch(`https://firebase.googleapis.com/v1beta1/projects/${projectId}/webApps`, { headers: { Authorization: `Bearer ${t2}` } });
-      const wd = await wr.json().catch(() => ({}));
-      const app = (wd.apps || [])[0];
-      let keyOut = { haveKeyId: app && app.apiKeyId ? true : false };
-      if (app && app.apiKeyId) {
-        const ks = await fetch(`https://apikeys.googleapis.com/v2/${app.name.replace(/webApps\//, "keys/")}:${"getKeyString"}`.replace(":getKeyString", "/keyString"), {
-          headers: { Authorization: `Bearer ${t2}` },
-        });
-        keyOut.keyStringStatus = ks.status;
-        keyOut.bodyStart = (await ks.text()).slice(0, 300);
-      }
-      const cfgRes = await fetch(`https://identitytoolkit.googleapis.com/v2/projects/${projectId}/config`, { headers: { Authorization: `Bearer ${t2}` } });
-      const cfgBody = JSON.parse((await cfgRes.text()) || "{}");
-      const emailEnabled = cfgBody && cfgBody.signIn && cfgBody.signIn.email && cfgBody.signIn.email.enabled;
-      const cfg = await getWebConfig(projectId);
-      return json(200, { apiKeyServiceEnabled: er.status, webApp: app ? { name: app.name, apiKeyId: app.apiKeyId || null } : null, keyOut, emailEnabled, webConfig: cfg && cfg.apiKey ? { ...cfg, apiKeyMasked: cfg.apiKey.slice(0, 6) + "..." + cfg.apiKey.slice(-4) } : cfg });
-    }
 
     if (action === "setRules") {
       const rules = (req.rules || "").trim();
