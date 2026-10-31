@@ -62,34 +62,56 @@ function Field({ label, value, long, disabled, onChange }) {
   );
 }
 
-export default function Editor({ me }) {
+export default function Editor({ me, page = "home", onPageChange }) {
   const [sections, setSections] = useState(null);
   const [orig, setOrig] = useState("");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [tone, setTone] = useState("");
   const [loaded, setLoaded] = useState(false);
+  const [pages, setPages] = useState([]);
+  const [title, setTitle] = useState("");
+  const [origTitle, setOrigTitle] = useState("");
 
   const canEdit = me && ["owner", "editor"].includes(me.role);
 
   useEffect(() => {
     let alive = true;
     (async () => {
-      let list = null;
       try {
-        const r = await post({ action: "publicContent", page: "home" });
-        if (r.status === 200 && r.data.content && Array.isArray(r.data.content.sections)) list = r.data.content.sections;
+        const saved = JSON.parse(localStorage.getItem("sa_admin") || "null");
+        const r = await post({ action: "listPages", idToken: saved && saved.idToken });
+        if (alive && r.status === 200) setPages(r.data.pages || []);
       } catch (e) {}
-      if (!alive) return;
-      if (!list) list = JSON.parse(JSON.stringify(DEFAULT_SECTIONS));
-      setSections(list);
-      setOrig(JSON.stringify(list));
-      setLoaded(true);
     })();
     return () => { alive = false; };
   }, []);
 
-  const dirty = loaded && JSON.stringify(sections) !== orig;
+  useEffect(() => {
+    let alive = true;
+    setLoaded(false);
+    (async () => {
+      let list = null;
+      let t = "";
+      try {
+        const r = await post({ action: "publicContent", page });
+        if (r.status === 200 && r.data.content && Array.isArray(r.data.content.sections)) {
+          list = r.data.content.sections;
+          t = r.data.content.title || "";
+        }
+      } catch (e) {}
+      if (!alive) return;
+      if (!list) list = page === "home" ? JSON.parse(JSON.stringify(DEFAULT_SECTIONS)) : [];
+      setSections(list);
+      setOrig(JSON.stringify(list));
+      setTitle(t || page);
+      setOrigTitle(t || page);
+      setLoaded(true);
+    })();
+    return () => { alive = false; };
+  }, [page]);
+
+  const dirty = loaded && (JSON.stringify(sections) !== orig || title !== origTitle);
   const shown = useMemo(() => (sections || []).length, [sections]);
 
   function setSection(i, data) {
@@ -112,15 +134,21 @@ export default function Editor({ me }) {
     setSection(i, { ...sections[i].data, [key]: sections[i].data[key].map((x, j) => (j === n ? v : x)) });
   }
 
+  const MORE_OFF = ["hero", "marquee", "footer", "booking"];
+  function setMore(i, patch) {
+    setSections((cur) => cur.map((s, n) => (n === i ? { ...s, more: { on: false, label: "See more", page: "", ...(s.more || {}), ...patch } } : s)));
+  }
+
   async function save() {
     if (!canEdit || busy || !dirty) return;
     setBusy(true);
     setNotice("");
     try {
       const saved = JSON.parse(localStorage.getItem("sa_admin") || "null");
-      const r = await post({ action: "saveContent", page: "home", idToken: saved && saved.idToken, sections });
+      const r = await post({ action: "saveContent", page, idToken: saved && saved.idToken, sections, title });
       if (r.status === 200 && r.data.ok) {
         setOrig(JSON.stringify(sections));
+        setOrigTitle(title);
         setNotice("Saved. Your changes reach the website on the next publish.");
         setTone("ok");
       } else {
@@ -142,6 +170,20 @@ export default function Editor({ me }) {
   return (
     <div className="sa-editor">
       <h3>Website content</h3>
+      <label className="sa-field">
+        <span>Editing page</span>
+        <select value={page} onChange={(e) => onPageChange && onPageChange(e.target.value)}>
+          {pages.length === 0 && <option value={page}>{page}</option>}
+          {pages.map((p) => (
+            <option key={p.id} value={p.id}>{(p.title || p.id) + (p.id === "home" ? " (home)" : "")}</option>
+          ))}
+        </select>
+      </label>
+      {page !== "home" && <p className="sa-hint">This is a dedicated page. Visitors reach it from a &quot;See more&quot; button.</p>}
+      <label className="sa-field">
+        <span>Page name (shows in the Pages list)</span>
+        <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} />
+      </label>
       <p className="sa-hint">{shown} sections on the page. Open one, change the words, then save.</p>
       {(sections || []).map((s, i) => {
         const d = s.data || {};
@@ -177,6 +219,30 @@ export default function Editor({ me }) {
                     </div>
                   ))}
                   {canEdit && <button type="button" className="sa-mini" onClick={() => addItem(i, list.key)}>Add one</button>}
+                </div>
+              )}
+              {!MORE_OFF.includes(s.type) && (
+                <div className="sa-card">
+                  <h4>&quot;See more&quot; button</h4>
+                  <p className="sa-hint">Add a button under this section that takes visitors to a dedicated page.</p>
+                  <label className="sa-vis">
+                    <input type="checkbox" checked={!!(s.more && s.more.on)} onChange={(e) => setMore(i, { on: e.target.checked })} />
+                    Show the button
+                  </label>
+                  {s.more && s.more.on && (
+                    <>
+                      <Field label="Button label" value={(s.more && s.more.label) || "See more"} onChange={(v) => setMore(i, { label: v })} />
+                      <label className="sa-field">
+                        <span>Opens this page</span>
+                        <select value={(s.more && s.more.page) || ""} onChange={(e) => setMore(i, { page: e.target.value })}>
+                          <option value="">Choose a page</option>
+                          {pages.filter((p) => p.id !== page).map((p) => (
+                            <option key={p.id} value={p.id}>{p.title || p.id}</option>
+                          ))}
+                        </select>
+                      </label>
+                    </>
+                  )}
                 </div>
               )}
             </div>

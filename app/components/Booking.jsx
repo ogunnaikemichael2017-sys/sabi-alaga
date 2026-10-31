@@ -13,6 +13,20 @@ export default function Booking({ data }) {
     e.preventDefault();
     const v = (x) => f[x] || "not sure yet";
     const m = "Hello Sabi, I\u2019m " + v("n") + ". I\u2019d like to ask about a " + v("t") + " on " + v("d") + " in " + v("c") + ", about " + v("g") + " guests.";
+    try {
+      fetch("/.netlify/functions/firebase-proxy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "submitEnquiry",
+          name: f.n,
+          eventType: f.t,
+          date: f.d,
+          location: f.c,
+          note: f.g ? f.g + " guests" : "",
+        }),
+      }).catch(() => {});
+    } catch (e) {}
     window.open("https://wa.me/" + NUMBER + "?text=" + encodeURIComponent(m), "_blank");
   };
   return (

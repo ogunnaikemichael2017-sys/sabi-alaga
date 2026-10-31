@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Editor from "./Editor";
+import { Overview, Pages, Media, Enquiries, Team, Settings } from "./panels";
 
 const API = "/.netlify/functions/firebase-proxy";
 const SDK = "https://www.gstatic.com/firebasejs/10.14.1";
@@ -69,6 +70,12 @@ const G_ICON = (
 
 export default function AdminClient() {
   const [stage, setStage] = useState("loading"); // loading | form | changepass | authed
+  const [tab, setTab] = useState("overview");
+  const [editPage, setEditPage] = useState("home");
+  const TABS = [
+    ["overview", "Overview"], ["sections", "Sections"], ["pages", "Pages"],
+    ["media", "Media"], ["enquiries", "Enquiries"], ["team", "Team"], ["settings", "Settings"],
+  ];
   const [notice, setNotice] = useState("");
   const [tone, setTone] = useState("");
   const [cfg, setCfg] = useState(null);
@@ -310,34 +317,36 @@ export default function AdminClient() {
 
         {stage === "authed" && me && (
           <>
-            <h1>Sabi Alaga admin</h1>
-            <p className="sa-sub">{me.email}</p>
-            <span className="sa-role">{roleLabel[me.role] || "No role"}</span>
-            <p className="sa-note ok">
-              {method === "google" ? "Signed in with Google" : "Signed in with email"}.
-              {me.role === "owner" ? " The media library and publishing tools arrive in the next build phases." : ""}
-            </p>
-            <Editor me={me} />
-            <div className="sa-panel">
-              <h3>{me.hasPassword ? "Password" : "Set a password (optional)"}</h3>
-              <form onSubmit={savePassword}>
-                <div className="sa-field">
-                  <label htmlFor="sa-np">{me.hasPassword ? "New password" : "New password for email sign-in"}</label>
-                  <input id="sa-np" type="password" value={pw1} onChange={(e) => setPw1(e.target.value)} autoComplete="new-password" />
-                </div>
-                <div className="sa-field">
-                  <label htmlFor="sa-np2">Repeat it</label>
-                  <input id="sa-np2" type="password" value={pw2} onChange={(e) => setPw2(e.target.value)} autoComplete="new-password" />
-                </div>
-                <button className="sa-btn sa-primary" disabled={busy} type="submit">{me.hasPassword ? "Update password" : "Set password"}</button>
-              </form>
-              <p className="sa-hint">
-                {me.hasPassword
-                  ? "You can always sign in with Google or with email and this password."
-                  : "Set one now and Google sign-in AND email sign-in both work for this account."}
-              </p>
+            <div className="sa-topbar">
+              <div>
+                <h1>Sabi Alaga admin</h1>
+                <p className="sa-sub">{me.email} &middot; {method === "google" ? "Google sign-in" : "Email sign-in"}</p>
+              </div>
+              <span className="sa-role">{roleLabel[me.role] || "No role"}</span>
             </div>
-            <button className="sa-btn sa-ghost" onClick={signOut}>Sign out</button>
+            <nav className="sa-tabs">
+              {TABS.map(([id, label]) => (
+                <button key={id} type="button" className={"sa-tab" + (tab === id ? " on" : "")} onClick={() => setTab(id)}>
+                  {label}
+                </button>
+              ))}
+            </nav>
+            {tab === "overview" && <Overview me={me} go={setTab} />}
+            {tab === "sections" && <Editor me={me} page={editPage} onPageChange={setEditPage} />}
+            {tab === "pages" && <Pages me={me} onOpen={(slug) => { setEditPage(slug); setTab("sections"); }} />}
+            {tab === "media" && <Media me={me} />}
+            {tab === "enquiries" && <Enquiries me={me} />}
+            {tab === "team" && <Team me={me} />}
+            {tab === "settings" && (
+              <Settings
+                me={me}
+                onSavePassword={savePassword}
+                onSignOut={signOut}
+                busy={busy}
+                pw1={pw1} setPw1={setPw1}
+                pw2={pw2} setPw2={setPw2}
+              />
+            )}
             <p className={`sa-note ${tone}`} role="status">{notice}</p>
           </>
         )}

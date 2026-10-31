@@ -165,6 +165,49 @@ async function docCreate(projectId, path, data, docId) {
   return { status: r.status, body: await r.json().catch(() => ({})) };
 }
 
+
+async function docUpsert(projectId, path, doc) {
+  const g = await docGet(projectId, path);
+  if (g.status === 200) {
+    const t = await getAccessToken();
+    const fields = {};
+    for (const k of Object.keys(doc)) fields[k] = toFirestore(doc[k]);
+    const mask = Object.keys(doc).map((k) => `updateMask.fieldPaths=${k}`).join("&");
+    const r = await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/${path}?${mask}`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${t}`, "X-Goog-User-Project": projectId, "Content-Type": "application/json" },
+      body: JSON.stringify({ fields }),
+    });
+    return { status: r.status, body: await r.json().catch(() => ({})) };
+  }
+  const parts = path.split("/");
+  return docCreate(projectId, parts.slice(0, -1).join("/"), doc, parts[parts.length - 1]);
+}
+
+async function docDelete(projectId, path) {
+  const t = await getAccessToken();
+  const r = await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/${path}`, {
+    method: "DELETE", headers: { Authorization: `Bearer ${t}`, "X-Goog-User-Project": projectId },
+  });
+  return { status: r.status, body: await r.json().catch(() => ({})) };
+}
+
+async function queryDocs(projectId, structuredQuery) {
+  const t = await getAccessToken();
+  const r = await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents:runQuery`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${t}`, "X-Goog-User-Project": projectId, "Content-Type": "application/json" },
+    body: JSON.stringify({ structuredQuery }),
+  });
+  const rows = await r.json().catch(() => []);
+  return (Array.isArray(rows) ? rows : [])
+    .filter((x) => x.document)
+    .map((x) => {
+      const rel = x.document.name.split("/databases/(default)/documents/")[1] || "";
+      return { id: rel.split("/").pop(), path: rel, doc: fromFirestore(x.document.fields || {}) };
+    });
+}
+
 async function setClaims(projectId, localId, attributes) {
   const t = await getAccessToken();
   const r = await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${projectId}/accounts:update`, {
@@ -216,7 +259,7 @@ async function getWebConfig(projectId) {
 }
 
 // Which actions need the proxy key (server-only operations)
-const KEY_ACTIONS = new Set(["get", "list", "create", "update", "delete", "query", "setRules", "health"]);
+const KEY_ACTIONS = new Set(["get", "list", "create", "update", "delete", "query", "setRules", "health", "setConfig"]);
 
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return json(204, {});
@@ -283,12 +326,15 @@ exports.handler = async (event) => {
         }
       }
       const now = new Date().toISOString();
+      const title = typeof req.title === "string" ? req.title.trim().slice(0, 120) : undefined;
       const doc = { page, updated: now, updatedBy: claims.email || claims.user_id || "", sections };
+      if (title !== undefined) doc.title = title || page;
       const path = `content/${page}`;
       const fields = {};
       for (const k of Object.keys(doc)) fields[k] = toFirestore(doc[k]);
       const authz = await getAccessToken().then((t) => ({ Authorization: `Bearer ${t}`, "X-Goog-User-Project": projectId, "Content-Type": "application/json" }));
-      let r = await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/${path}?updateMask.fieldPaths=page&updateMask.fieldPaths=updated&updateMask.fieldPaths=updatedBy&updateMask.fieldPaths=sections`, {
+      const mask = ["page", "updated", "updatedBy", "sections", ...(title !== undefined ? ["title"] : [])].map((k) => `updateMask.fieldPaths=${k}`).join("&");
+      let r = await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/${path}?${mask}`, {
         method: "PATCH", headers: authz, body: JSON.stringify({ fields }),
       });
       if (r.status === 404) r = await docCreate(projectId, "content", doc, page);
@@ -393,6 +439,7 @@ exports.handler = async (event) => {
       if (!ROLES.includes(role)) return json(400, { error: `role must be one of ${ROLES.join(", ")}` });
       const upd = await setClaims(projectId, targetUid, { role });
       if (upd.status !== 200) return json(upd.status, { error: "could not set role", detail: upd.body });
+      await docUpsert(projectId, `meta/team/${targetUid}`, { role, status: "Active", updated: new Date().toISOString() });
       return json(200, { ok: true, targetUid, role });
     }
 
@@ -459,11 +506,172 @@ exports.handler = async (event) => {
       const upd = await setClaims(projectId, localId, { role, mustChangePassword: true });
       if (upd.status !== 200) return json(upd.status, { error: "could not set role", detail: upd.body });
       const rec = await docCreate(projectId, "meta/invites", { email, role, invitedBy: caller.email || null, invitedAt: { __timestamp: new Date().toISOString() } }, email.replace(/\//g, "_"));
-      return json(200, { ok: true, email, role, tempPassword, inviteRecord: rec.status });
+      const teamRec = await docCreate(projectId, "meta/team", { email, role, status: "Invited", invitedBy: caller.email || null, invitedAt: { __timestamp: new Date().toISOString() } }, localId);
+      return json(200, { ok: true, email, role, tempPassword, inviteRecord: rec.status, teamRecord: teamRec.status });
+    }
+
+
+    // ---------- admin panels: pages, media, enquiries, team, publish ----------
+    if (action === "listPages") {
+      const claims = await verifyIdToken(req.idToken, projectId);
+      const rows = await queryDocs(projectId, { from: [{ collectionId: "content" }] });
+      const pages = rows.map((r) => ({
+        id: r.id,
+        title: r.doc.title || "",
+        updated: r.doc.updated || "",
+        updatedBy: r.doc.updatedBy || "",
+        sectionCount: Array.isArray(r.doc.sections) ? r.doc.sections.length : 0,
+      }));
+      return json(200, { pages });
+    }
+
+    if (action === "savePage") {
+      const claims = await verifyIdToken(req.idToken, projectId);
+      if (!["owner", "editor"].includes(claims.role)) return json(403, { error: "your role cannot create pages" });
+      const slug = String(req.slug || "").trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
+      if (!slug || slug === "home") return json(400, { error: "pick a page name with letters, numbers or dashes" });
+      const title = String(req.title || "").trim().slice(0, 120) || slug;
+      const exists = await docGet(projectId, `content/${slug}`);
+      if (exists.status === 200) return json(409, { error: "a page with that name already exists" });
+      const now = new Date().toISOString();
+      const doc = { page: slug, title, sections: [], updated: now, updatedBy: claims.email || claims.user_id || "" };
+      const r = await docCreate(projectId, "content", doc, slug);
+      if (r.status !== 200) return json(r.status, { error: "could not create the page" });
+      return json(200, { ok: true, slug, title });
+    }
+
+    if (action === "deletePage") {
+      const claims = await verifyIdToken(req.idToken, projectId);
+      if (claims.role !== "owner") return json(403, { error: "only an owner can delete a page" });
+      const slug = String(req.slug || "").replace(/[^a-z0-9-]/g, "");
+      if (!slug || slug === "home") return json(400, { error: "the home page cannot be deleted" });
+      const r = await docDelete(projectId, `content/${slug}`);
+      if (r.status !== 200 && r.status !== 404) return json(r.status, { error: "could not delete the page" });
+      return json(200, { ok: true, slug });
+    }
+
+    if (action === "listMedia") {
+      await verifyIdToken(req.idToken, projectId);
+      const r = await docGet(projectId, "media/library");
+      if (r.status !== 200) return json(200, { items: [] });
+      const doc = fromFirestore(r.body.fields || {});
+      return json(200, { items: Array.isArray(doc.items) ? doc.items : [] });
+    }
+
+    if (action === "saveMedia") {
+      const claims = await verifyIdToken(req.idToken, projectId);
+      if (!["owner", "editor"].includes(claims.role)) return json(403, { error: "your role cannot change the media library" });
+      const items = Array.isArray(req.items) ? req.items : null;
+      if (!items) return json(400, { error: "items required" });
+      if (items.length > 300) return json(400, { error: "too many items" });
+      const clean = items
+        .map((it) => ({
+          id: String((it && it.id) || "").slice(0, 64),
+          name: String((it && it.name) || "").slice(0, 120),
+          type: String((it && it.type) || "image").slice(0, 12),
+          kb: Number(it && it.kb) || 0,
+          url: String((it && it.url) || "").slice(0, 2048),
+          alt: String((it && it.alt) || "").slice(0, 300),
+        }))
+        .filter((it) => it.id && it.url);
+      const now = new Date().toISOString();
+      const doc = { items: clean, updated: now, updatedBy: claims.email || claims.user_id || "" };
+      const r = await docUpsert(projectId, "media/library", doc);
+      if (r.status !== 200) return json(r.status, { error: "could not save the media library" });
+      return json(200, { ok: true, items: clean.length });
+    }
+
+    if (action === "submitEnquiry") {
+      // Open action: the public booking form posts here (no credentials).
+      const clean = (v, n) => String(v || "").replace(/[\u0000-\u001f]+/g, " ").trim().slice(0, n);
+      const name = clean(req.name, 120);
+      const contact = clean(req.contact, 80);
+      const eventType = clean(req.eventType, 60);
+      const date = clean(req.date, 40);
+      const location = clean(req.location, 80);
+      const note = clean(req.note, 500);
+      if (!name) return json(400, { error: "a name is required" });
+      const id = "enq-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7);
+      const r = await docCreate(projectId, "enquiries", { name, contact, eventType, date, location, note, status: "New", createdAt: { __timestamp: new Date().toISOString() } }, id);
+      if (r.status !== 200) return json(r.status, { error: "could not save the enquiry" });
+      return json(200, { ok: true, id });
+    }
+
+    if (action === "listEnquiries") {
+      await verifyIdToken(req.idToken, projectId);
+      const rows = await queryDocs(projectId, { from: [{ collectionId: "enquiries" }], orderBy: [{ field: { fieldPath: "createdAt" }, direction: "DESCENDING" }], limit: 100 });
+      return json(200, { enquiries: rows.map((r) => ({ id: r.id, ...r.doc })) });
+    }
+
+    if (action === "updateEnquiry") {
+      const claims = await verifyIdToken(req.idToken, projectId);
+      if (!["owner", "editor"].includes(claims.role)) return json(403, { error: "your role cannot update enquiries" });
+      const id = String(req.id || "").replace(/[^A-Za-z0-9-]/g, "");
+      const status = String(req.status || "");
+      if (!id || !["New", "Replied", "Closed"].includes(status)) return json(400, { error: "bad enquiry update" });
+      const chk = await docGet(projectId, `enquiries/${id}`);
+      if (chk.status !== 200) return json(404, { error: "no such enquiry" });
+      const r = await docUpsert(projectId, `enquiries/${id}`, { status, updated: new Date().toISOString() });
+      if (r.status !== 200) return json(r.status, { error: "could not update the enquiry" });
+      return json(200, { ok: true, id, status });
+    }
+
+    if (action === "deleteEnquiry") {
+      const claims = await verifyIdToken(req.idToken, projectId);
+      if (!["owner", "editor"].includes(claims.role)) return json(403, { error: "your role cannot delete enquiries" });
+      const id = String(req.id || "").replace(/[^A-Za-z0-9-]/g, "");
+      if (!id) return json(400, { error: "id required" });
+      await docDelete(projectId, `enquiries/${id}`);
+      return json(200, { ok: true, id });
+    }
+
+    if (action === "listTeam") {
+      await verifyIdToken(req.idToken, projectId);
+      const rows = await queryDocs(projectId, { from: [{ collectionId: "team", allDescendants: true }] });
+      return json(200, { team: rows.map((r) => ({ uid: r.id, ...r.doc })) });
+    }
+
+    if (action === "removeUser") {
+      const caller = await verifyIdToken(req.idToken, projectId);
+      if (caller.role !== "owner") return json(403, { error: "only an owner can remove a member" });
+      const targetUid = String(req.targetUid || "");
+      if (!/^[A-Za-z0-9_-]{10,64}$/.test(targetUid)) return json(400, { error: "bad targetUid" });
+      if (targetUid === caller.user_id) return json(400, { error: "you cannot remove yourself" });
+      const own = await docGet(projectId, "meta/owner");
+      if (own.status === 200) {
+        const cur = fromFirestore(own.body.fields || {});
+        if (cur.uid === targetUid) return json(400, { error: "the site owner cannot be removed" });
+      }
+      const t = await getAccessToken();
+      const dr = await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${projectId}/accounts:delete`, {
+        method: "POST", headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ localId: targetUid }),
+      });
+      await docDelete(projectId, `meta/team/${targetUid}`);
+      return json(200, { ok: true, accountDeleted: dr.ok });
+    }
+
+    if (action === "publish") {
+      const claims = await verifyIdToken(req.idToken, projectId);
+      if (!["owner", "editor"].includes(claims.role)) return json(403, { error: "your role cannot publish" });
+      const c = await docGet(projectId, "meta/config");
+      const cfg = c.status === 200 ? fromFirestore(c.body.fields || {}) : {};
+      if (!cfg.buildHook) return json(503, { error: "publishing is not wired up yet. Ask Michael to connect the build hook." });
+      const r = await fetch(cfg.buildHook, { method: "POST" });
+      if (r.status !== 200) return json(r.status, { error: "the publish request was refused. Try again." });
+      return json(200, { ok: true });
     }
 
     // ---------- key-gated actions ----------
     if (action === "health") return json(200, { ok: true, projectId });
+
+    if (action === "setConfig") {
+      const buildHook = String(req.buildHook || "").trim();
+      if (buildHook && !/^https:\/\/api\.netlify\.com\/build_hooks\//.test(buildHook)) return json(400, { error: "bad build hook url" });
+      const r = await docUpsert(projectId, "meta/config", { buildHook, updated: new Date().toISOString() });
+      if (r.status !== 200) return json(r.status, { error: "could not save the config" });
+      return json(200, { ok: true });
+    }
 
     if (action === "setRules") {
       const rules = (req.rules || "").trim();
