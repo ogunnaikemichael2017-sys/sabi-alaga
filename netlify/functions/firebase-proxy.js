@@ -132,7 +132,8 @@ exports.handler = async (event) => {
   try { sa = svc(); } catch (e) {
     return json(500, { error: e.message });
   }
-  const base = `https://firestore.googleapis.com/v1/projects/${sa.project_id}/databases/(default)/documents/${encodeURIComponent(collection)}`;
+  const dbId = encodeURIComponent(req.databaseId || "(default)");
+  const base = `https://firestore.googleapis.com/v1/projects/${sa.project_id}/databases/${dbId}/documents/${encodeURIComponent(collection)}`;
   const authz = () => getAccessToken().then((t) => ({ Authorization: `Bearer ${t}`, "X-Goog-User-Project": sa.project_id }));
 
   try {
@@ -233,7 +234,7 @@ exports.handler = async (event) => {
     }
 
     if (action === "collections") {
-      const r = await fetch(`https://firestore.googleapis.com/v1/projects/${sa.project_id}/databases/(default)/documents:listCollectionIds`, { method: "POST", headers: await authz(), body: "{}" });
+      const r = await fetch(`https://firestore.googleapis.com/v1/projects/${sa.project_id}/databases/${encodeURIComponent(req.databaseId || "(default)")}/documents:listCollectionIds`, { method: "POST", headers: await authz(), body: "{}" });
       const d = await r.json();
       return json(r.status, d);
     }
