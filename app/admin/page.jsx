@@ -1,4 +1,5 @@
 import AdminClient from "./AdminClient";
+import "./admin.css";
 
 export const metadata = {
   title: "Admin | The Sabi Alaga",
