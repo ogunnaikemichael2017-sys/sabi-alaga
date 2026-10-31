@@ -84,7 +84,7 @@ export function Overview({ me, go }) {
   const who = name ? name.charAt(0).toUpperCase() + name.slice(1) : "there";
   return (
     <div>
-      <h2>Welcome back, {who}</h2>
+      <h2 style={{ fontSize: 40 }}>Welcome back, {who}</h2>
       <div className="grid">
         <div className="card"><div className="mut">New enquiries</div><div className="big">{newEnq}</div></div>
         <div className="card"><div className="mut">Sections live</div><div className="big">{d.live}/{d.total}</div></div>
@@ -108,6 +108,7 @@ export function Pages({ me, onOpen, toast }) {
   const [pages, setPages] = useState(null);
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
+  const [adding, setAdding] = useState(false);
   const [busy, setBusy] = useState(false);
   const isOwner = me && me.role === "owner";
   const canEdit = me && ["owner", "editor"].includes(me.role);
@@ -150,20 +151,26 @@ export function Pages({ me, onOpen, toast }) {
     <div>
       <h2>Pages</h2>
       <p className="mut">Home is the main page. A dedicated page gives a section more room, such as every wedding video, and visitors reach it from a &ldquo;See more&rdquo; button.</p>
+      {canEdit && (
+        <div style={{ margin: "12px 0 14px" }}>
+          <button className="btn g" type="button" onClick={() => setAdding(!adding)}>New blank page</button>
+        </div>
+      )}
       {pages.map((p) => (
         <div className="card" style={{ marginBottom: 12 }} key={p.id}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
-            <b>{p.title || p.id}</b>
+            <b>{p.title || (p.id === "home" ? "Home" : p.id)}</b>
             <span className={"pill " + (p.id === "home" ? "ok" : "f")}>{p.id === "home" ? "Main page" : "Dedicated page"}</span>
           </div>
-          <p className="mut" style={{ margin: "6px 0 0" }}>Address: {p.id === "home" ? "/" : "/" + p.id} &middot; {p.sectionCount} sections &middot; saved {fmtWhen(p.updated)}</p>
+          <p className="mut" style={{ margin: "6px 0 0" }}>Address: {p.id === "home" ? "/" : "/" + p.id}</p>
+          <p className="mut" style={{ margin: "2px 0 0" }}>{p.sectionCount} sections</p>
           <div style={{ marginTop: 10 }}>
             <button className="btn s p" type="button" onClick={() => onOpen(p.id)}>Edit sections</button>{" "}
             {isOwner && p.id !== "home" && <button className="btn s d" type="button" onClick={() => del(p.id)}>Remove page</button>}
           </div>
         </div>
       ))}
-      {canEdit ? (
+      {canEdit ? (adding ? (
         <form onSubmit={create} style={{ marginTop: 14 }}>
           <div className="card">
             <h3 style={{ fontSize: 18, marginBottom: 10 }}>New blank page</h3>
@@ -172,7 +179,7 @@ export function Pages({ me, onOpen, toast }) {
             <button className="btn p" disabled={busy || !slug.trim()} type="submit">{busy ? "Creating\u2026" : "Create page"}</button>
           </div>
         </form>
-      ) : (
+      ) : null) : (
         <p className="mut">Your role cannot create pages.</p>
       )}
     </div>
@@ -186,9 +193,6 @@ export function Media({ me, toast }) {
   const [busy, setBusy] = useState(false);
   const [mf, setMf] = useState("all");
   const [uf, setUf] = useState("");
-  const [url, setUrl] = useState("");
-  const [name, setName] = useState("");
-  const [linkOpen, setLinkOpen] = useState(false);
   const canEdit = me && ["owner", "editor"].includes(me.role);
 
   async function load() {
@@ -233,7 +237,7 @@ export function Media({ me, toast }) {
         const r = await fetch("https://api.cloudinary.com/v1_1/di4dlnd5x/auto/upload", { method: "POST", body: fd });
         const j = await r.json();
         if (!r.ok || !j.secure_url) {
-          toast && toast("Upload failed for " + file.name + ". Try a smaller file, or add it by link.");
+          toast && toast("Upload failed for " + file.name + ". Try a smaller file.");
           continue;
         }
         added.push({
@@ -253,23 +257,6 @@ export function Media({ me, toast }) {
       const ok = await persist([...added, ...(items || [])]);
       if (ok) { toast && toast(added.length + " file" + (added.length > 1 ? "s" : "") + " uploaded"); addPending(added.length); }
     }
-    setBusy(false);
-  }
-
-  async function addByLink(e) {
-    e.preventDefault();
-    if (!canEdit || busy || !url.trim()) return;
-    setBusy(true);
-    const it = {
-      id: "link-" + Date.now(),
-      name: name.trim() || "linked item",
-      type: /\.(mp4|webm|mov)(\?|$)/i.test(url) ? "video" : "image",
-      kb: 0,
-      url: url.trim(),
-      alt: "",
-      f: uf,
-    };
-    if (await persist([...(items || []), it])) { setUrl(""); setName(""); setLinkOpen(false); toast && toast("Added."); addPending(1); }
     setBusy(false);
   }
 
@@ -306,15 +293,7 @@ export function Media({ me, toast }) {
             <input type="file" multiple accept="image/*,video/*" style={{ display: "none" }} disabled={busy} onChange={(e) => { upload(e.target.files); e.target.value = ""; }} />
           </label>
         )}
-        {canEdit && <button className="btn s" type="button" onClick={() => setLinkOpen(!linkOpen)}>Add by link</button>}
       </div>
-      {linkOpen && (
-        <form onSubmit={addByLink} style={{ marginTop: 10 }}>
-          <label>Image or video address<input type="text" placeholder="https://res.cloudinary.com/&hellip;" value={url} onChange={(e) => setUrl(e.target.value)} /></label>
-          <label>Give it a name<input type="text" placeholder="Couple dancing clip" value={name} onChange={(e) => setName(e.target.value)} /></label>
-          <button className="btn" disabled={busy || !url.trim()} type="submit">Add</button>
-        </form>
-      )}
       <div className="chips">
         <button className={"chip keep" + (mf === "all" ? " on" : "")} type="button" onClick={() => setMf("all")}>All ({items.length})</button>
         {fs.filter((f) => cnt(f.id) > 0).map((f) => (

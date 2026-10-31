@@ -79,6 +79,14 @@ export default function AdminClient() {
   const [tab, setTab] = useState("overview");
   const [editPage, setEditPage] = useState("home");
   const [notice, setNotice] = useState("");
+  const [viewAs, setViewAs] = useState("owner");
+  useEffect(() => {
+    if (stage !== "authed") {
+      document.body.style.backgroundColor = "#14154A";
+      return () => { document.body.style.backgroundColor = ""; };
+    }
+    return undefined;
+  }, [stage]);
   const [tone, setTone] = useState("");
   const [cfg, setCfg] = useState(null);
   const [me, setMe] = useState(null);
@@ -287,7 +295,7 @@ export default function AdminClient() {
   }
 
   const canEdit = me && ["owner", "editor"].includes(me.role);
-  const canPub = canEdit;
+  const canPub = canEdit && viewAs === "owner";
   const roleText = pend
     ? "Draft: " + pend + " unpublished change" + (pend === 1 ? "" : "s")
     : "Live: up to date";
@@ -325,7 +333,6 @@ export default function AdminClient() {
                 <p className="mut" style={{ margin: "12px 0 0", fontSize: 12, color: tone === "bad" ? "var(--fuchsia)" : undefined }} role="status">
                   {notice || "Only invited emails can sign in. Forgot your password? Reset by email."}
                 </p>
-                {notice && <p className="mut" style={{ margin: "4px 0 0", fontSize: 12 }}>Only invited emails can sign in. Forgot your password? Reset by email.</p>}
                 {cfg && cfg.ownerClaimed === false && (
                   <button className="btn" disabled={busy || !email || password.length < 6} onClick={() => onSubmit("signUp")} style={{ width: "100%", marginTop: 10 }}>
                     Create account
@@ -369,6 +376,15 @@ export default function AdminClient() {
               <div className="top">
                 <b style={{ font: "italic 900 18px var(--serif)" }}>The Sabi Alaga</b>
                 <span className={"pill " + (pend ? "w" : "ok")}>{roleText}</span>
+                {me.role === "owner" && (
+                  <label className="viewas">
+                    View as
+                    <select className="keep" value={viewAs} onChange={(e) => setViewAs(e.target.value)}>
+                      <option value="owner">owner</option>
+                      <option value="contributor">contributor</option>
+                    </select>
+                  </label>
+                )}
                 <span className="sp" />
                 <button className="btn s keep" type="button" onClick={() => setModal({ t: "hist" })}>History</button>
                 <button className="btn s keep" type="button" onClick={() => window.open(window.location.origin, "_blank")}>Preview</button>
@@ -417,7 +433,7 @@ export default function AdminClient() {
                     {pages.map((p) => (
                       <div className="row" key={p.id}>
                         <span className="nm">
-                          {p.title || p.id}
+                          {p.title || (p.id === "home" ? "Home" : p.id)}
                           <br />
                           <span className="mut">{p.id === "home" ? "/" : "/" + p.id} &middot; {p.sectionCount} sections &middot; saved {p.updated ? new Date(p.updated).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "never"}</span>
                         </span>

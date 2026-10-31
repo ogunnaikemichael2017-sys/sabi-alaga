@@ -173,7 +173,7 @@ export default function Editor({ me, page = "home", onPageChange, toast }) {
   const dirty = loaded && (JSON.stringify(sections) !== orig || title !== origTitle);
 
   const pageSlug = (p) => (p.id === "home" ? "/" : "/" + p.id);
-  const pageLabel = (p) => (p.title || p.id) + " (" + pageSlug(p) + ")";
+  const pageLabel = (p) => (p.title || (p.id === "home" ? "Home" : p.id)) + " (" + pageSlug(p) + ")";
 
   function bump() { addPending(1); }
 
@@ -410,10 +410,12 @@ export default function Editor({ me, page = "home", onPageChange, toast }) {
         </select>
       </label>
       {page !== "home" && <p className="mut" style={{ marginTop: -6 }}>This is a dedicated page. Visitors reach it from a &ldquo;See more&rdquo; button.</p>}
-      <label>
-        Page name (shows in the Pages list)
-        <input type="text" value={title} disabled={!canEdit} onChange={(e) => setTitle(e.target.value)} />
-      </label>
+      {page !== "home" && (
+        <label>
+          Page name (shows in the Pages list)
+          <input type="text" value={title} disabled={!canEdit} onChange={(e) => setTitle(e.target.value)} />
+        </label>
+      )}
       <p className="mut">Change the order, hide, edit or remove any part of the page. Nothing goes live until you publish.</p>
       {canEdit && <button className="btn g" type="button" style={{ marginBottom: 14 }} onClick={() => setModal({ t: "add" })}>Add a section</button>}
       {(sections || []).map((s, i) => {

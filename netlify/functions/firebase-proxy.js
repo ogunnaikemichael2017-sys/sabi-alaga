@@ -369,9 +369,15 @@ exports.handler = async (event) => {
       const found = ((await lr.json().catch(() => ({}))) || {}).users || [];
       if (!found.length) return json(404, { error: "no such user" });
       const localId = found[0].localId;
+      // customAttributes comes back as a JSON string; parse it and keep only
+      // known keys so repeated role changes never inflate the claims payload.
+      let prev = {};
+      try { prev = JSON.parse(found[0].customAttributes || "{}") || {}; } catch (e) { prev = {}; }
+      const claims = { role };
+      for (const k of Object.keys(prev)) if (typeof k === "string" && !/^\d+$/.test(k) && k !== "role") claims[k] = prev[k];
       const cr = await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${projectId}/accounts:update`, {
         method: "POST", headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ localId, customAttributes: JSON.stringify({ ...(found[0].customAttributes || {}), role }) }),
+        body: JSON.stringify({ localId, customAttributes: JSON.stringify(claims) }),
       });
       if (!cr.ok) return json(cr.status, await cr.json().catch(() => ({})));
       return json(200, { ok: true, role, email: req.email });
