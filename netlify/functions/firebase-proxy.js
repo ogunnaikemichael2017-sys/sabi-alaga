@@ -163,12 +163,12 @@ async function docCreate(projectId, path, data, docId) {
 
 async function setClaims(projectId, localId, attributes) {
   const t = await getAccessToken();
-  const r = await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${projectId}/accounts:batchUpdate`, {
+  const r = await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${projectId}/accounts:update`, {
     method: "POST",
     headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ requests: [{ localId, customAttributes: JSON.stringify(attributes) }] }),
+    body: JSON.stringify({ localId, customAttributes: JSON.stringify(attributes) }),
   });
-  const d = await r.json();
+  const d = await r.json().catch(() => ({}));
   return { status: r.status, body: d };
 }
 
@@ -378,36 +378,32 @@ exports.handler = async (event) => {
 
     if (action === "debugClaims") {
       const out = {};
-      const t = await getAccessToken();
-      // Correct admin create-user endpoint: POST projects/{pid}/accounts
+      const em = "sabi.claimtest.oct31@gmail.com";
       const cr = await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${projectId}/accounts`, {
-        method: "POST", headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ email: "sabi.claimtest.oct31@gmail.com", password: "Temp-pass-1", emailVerified: true }),
+        method: "POST", headers: { ...(await authz()), "Content-Type": "application/json" },
+        body: JSON.stringify({ email: em, password: "Temp-pass-1", emailVerified: true }),
       });
-      out.createUser = { status: cr.status, body: (await cr.text()).slice(0, 300) };
-      // batchUpdate on a real existing uid (the earlier flowtest user)
-      const probe = "7GVZC2DCspXqTUimFYZg6mLf59G3";
-      const br = await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${projectId}/accounts:batchUpdate`, {
-        method: "POST", headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ requests: [{ localId: probe, customAttributes: JSON.stringify({ role: "editor" }) }] }),
-      });
-      out.batchUpdate = { status: br.status, body: (await br.text()).slice(0, 400) };
-      // clean up both test users
-      const forEmail = async (email) => {
-        const lr = await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${projectId}/accounts:lookup`, {
-          method: "POST", headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ email }),
+      out.createUser = { status: cr.status, body: (await cr.text()).slice(0, 200) };
+      let localId = null; try { localId = JSON.parse(out.createUser.body).localId; } catch (e) {}
+      if (localId) {
+        const sc = await setClaims(projectId, localId, { role: "editor" });
+        out.setClaims = { status: sc.status, body: JSON.stringify(sc.body).slice(0, 300) };
+        const cfg = await getWebConfig(projectId);
+        const si = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${cfg.apiKey}`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: em, password: "Temp-pass-1", returnSecureToken: true }),
         });
-        const ld = await lr.json().catch(() => ({}));
-        const lid = ((ld.users || [])[0] || {}).localId;
-        if (!lid) return "not found";
+        const sd = await si.json().catch(() => ({}));
+        if (sd.idToken) {
+          const payload = JSON.parse(Buffer.from(sd.idToken.split(".")[1], "base64url").toString("utf8"));
+          out.tokenClaims = { role: payload.role || null, email_verified: payload.email_verified || false };
+        } else out.tokenClaims = { signInStatus: si.status };
         const dr = await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${projectId}/accounts:delete`, {
-          method: "POST", headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ localId: lid }),
+          method: "POST", headers: { ...(await authz()), "Content-Type": "application/json" },
+          body: JSON.stringify({ localId }),
         });
-        return dr.status;
-      };
-      out.cleanup = { claimtest: await forEmail("sabi.claimtest.oct31@gmail.com"), flowtest: await forEmail("sabi.flowtest.oct31@gmail.com") };
+        out.delete = { status: dr.status };
+      }
       return json(200, out);
     }
 
