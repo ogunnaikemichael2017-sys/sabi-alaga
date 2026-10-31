@@ -326,7 +326,10 @@ exports.handler = async (event) => {
       r = await fetch(`https://firebaserules.googleapis.com/v1/projects/${projectId}/releases`, { method: "POST", headers: { ...(await authz()), "Content-Type": "application/json" }, body: relBody });
       d = await r.json();
       if (!r.ok) {
-        const r2 = await fetch(`https://firebaserules.googleapis.com/v1/projects/${projectId}/releases/cloud.firestore`, { method: "PATCH", headers: { ...(await authz()), "Content-Type": "application/json" }, body: relBody });
+        const postErr = d;
+        const r2 = await fetch(`https://firebaserules.googleapis.com/v1/projects/${projectId}/releases/cloud.firestore`, { method: "PATCH", headers: { ...(await authz()), "Content-Type": "application/json" }, body: JSON.stringify({ release: { name: `projects/${projectId}/releases/cloud.firestore`, rulesetName: rsName } }) });
+        const d2 = await r2.json();
+        return json(r2.status, { postError: postErr, ruleset: rsName, release: d2 });
         const d2 = await r2.json();
         return json(r2.status, { ruleset: rsName, release: d2 });
       }
