@@ -243,6 +243,16 @@ async function sendInviteEmail({ to, name, role, tempPassword }) {
   });
   if (!res.ok) {
     const text = await res.text();
+    const hdrs = {};
+    res.headers.forEach((v, k) => {
+      if (/^(x-|content-type)/i.test(k)) hdrs[k] = v;
+    });
+    console.error("zepto invite send failed:", JSON.stringify({
+      url,
+      status: res.status,
+      body: text.slice(0, 800),
+      headers: hdrs,
+    }));
     throw new Error(`ZeptoMail ${res.status}: ${text.slice(0, 300)}`);
   }
 }
