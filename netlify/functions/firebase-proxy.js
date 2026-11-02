@@ -218,6 +218,35 @@ async function queryDocs(projectId, structuredQuery) {
     });
 }
 
+async function sendInviteEmail({ to, name, role, tempPassword }) {
+  // Invite credentials go out via ZeptoMail with the owner's invite template.
+  // Merge variables must match the template exactly: first_name, role, temp_password, login_url.
+  const host = process.env.ZEPTO_API_HOST || "api.zeptomail.com";
+  const url = `https://${host}/v1.1/email/template`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Zoho-enczapikey ${process.env.ZEPTO_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      template_key: process.env.ZEPTO_INVITE_TEMPLATE_KEY,
+      from: { address: process.env.SENDER_EMAIL, name: "Sabi Alaga" },
+      to: [{ email_address: { address: to } }],
+      merge_info: {
+        first_name: (name || String(to).split("@")[0]) || "there",
+        role,
+        temp_password: tempPassword,
+        login_url: `${process.env.APP_URL || ""}/admin`,
+      },
+    }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`ZeptoMail ${res.status}: ${text.slice(0, 300)}`);
+  }
+}
+
 async function setClaims(projectId, localId, attributes) {
   const t = await getAccessToken();
   const r = await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${projectId}/accounts:update`, {
@@ -526,7 +555,19 @@ exports.handler = async (event) => {
       const rec = await docCreate(projectId, "invites", { email, name, role, invitedBy: caller.email || null, invitedAt: { __timestamp: new Date().toISOString() } }, email.replace(/[^A-Za-z0-9_.@-]/g, "_"));
       const teamRec = await docCreate(projectId, "team", { email, name, role, status: "Invited", invitedBy: caller.email || null, invitedAt: { __timestamp: new Date().toISOString() } }, localId);
       await logAct(projectId, "Invited " + email + " as " + role);
-      return json(200, { ok: true, email, role, tempPassword, inviteRecord: rec.status, teamRecord: teamRec.status });
+      let emailSent = false;
+      let emailError = null;
+      if (process.env.ZEPTO_INVITE_TEMPLATE_KEY && process.env.ZEPTO_API_KEY) {
+        try {
+          await sendInviteEmail({ to: email, name, role, tempPassword });
+          emailSent = true;
+        } catch (e) {
+          emailError = String((e && e.message) || e).slice(0, 300);
+        }
+      } else {
+        emailError = "ZEPTO_INVITE_TEMPLATE_KEY is not set on Netlify";
+      }
+      return json(200, { ok: true, email, role, tempPassword, emailSent, emailError, inviteRecord: rec.status, teamRecord: teamRec.status });
     }
 
 

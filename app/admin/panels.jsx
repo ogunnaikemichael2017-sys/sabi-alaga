@@ -646,7 +646,7 @@ export function Team({ me, toast }) {
     setBusy(true);
     const r = await post({ action: "inviteUser", idToken: token(), email, role, name: name.trim() });
     if (r.status === 200 && r.data.ok) {
-      setInvite({ email: r.data.email, role: r.data.role, tempPassword: r.data.tempPassword });
+      setInvite({ email: r.data.email, role: r.data.role, tempPassword: r.data.tempPassword, sent: r.data.emailSent === true });
       setEmail("");
       setName("");
       await load();
@@ -722,7 +722,7 @@ export function Team({ me, toast }) {
         <div className="modal" onClick={() => setInvite(null)}>
           <div className="card" onClick={(e) => e.stopPropagation()}>
             <h3>Invite ready: {invite.email}</h3>
-            <p className="mut">Copy this and send it to them (WhatsApp is fine):</p>
+            <p className="mut">{invite.sent ? "An email with these details is on its way to them. Keep this copy as a backup:" : "The invite email could not be sent. Copy this and send it to them (WhatsApp is fine):"}</p>
             <p className="mut" style={{ border: "2px dashed var(--line)", borderRadius: 14, padding: 12 }}>
               Sign in at the Sabi Alaga admin with this email and temporary password:<br />
               Email: {invite.email}<br />
