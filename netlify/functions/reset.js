@@ -29,16 +29,22 @@ function getAdmin() {
   return firebaseAdmin;
 }
 
+// Accepts the API key with or without the "Zoho-enczapikey" prefix pasted in
+// (the console copies it with the prefix; a doubled prefix makes every send fail).
+function zeptoToken(raw) {
+  const s = String(raw || "").trim();
+  return s.startsWith("Zoho-enczapikey") ? s.slice("Zoho-enczapikey".length).trim() : s;
+}
+
+
 async function sendResetEmail({ to, resetLink, firstName }) {
-  // TEMP DIAGNOSTIC: env host (cpaas.zoho.com) returns 500 with an empty body on
-  // sends; force the long-standing API host for this one test. Revert after.
-  const host = "api.zeptomail.com";
+  const host = process.env.ZEPTO_API_HOST || "api.zeptomail.com";
   const alias = process.env.ZEPTO_AGENT_ALIAS || "";
   const url = `https://${host}/v1.1/email/template`;
   const res = await fetch(url, {
     method: "POST",
     headers: {
-      Authorization: `Zoho-enczapikey ${process.env.ZEPTO_API_KEY}`,
+      Authorization: `Zoho-enczapikey ${zeptoToken(process.env.ZEPTO_API_KEY)}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({

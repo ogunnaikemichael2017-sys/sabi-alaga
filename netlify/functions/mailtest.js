@@ -11,7 +11,7 @@ async function post(host, path, body) {
     const res = await fetch(url, {
       method: "POST",
       headers: {
-        Authorization: `Zoho-enczapikey ${KEY}`,
+        Authorization: `Zoho-enczapikey ${KEY.startsWith("Zoho-enczapikey") ? KEY.slice("Zoho-enczapikey".length).trim() : KEY.trim()}`,
         "Content-Type": "application/json",
         Accept: "application/json",
       },
