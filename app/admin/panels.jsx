@@ -73,6 +73,7 @@ function folders(pages, contentByPage) {
 
 export function Overview({ me, go }) {
   const [d, setD] = useState(null);
+  const [more, setMore] = useState(false);
   useEffect(() => {
     let alive = true;
     const build = (media, enq, team, home, metaD) => {
@@ -118,7 +119,8 @@ export function Overview({ me, go }) {
   }, []);
   if (!d) return <p className="mut">Loading&hellip;</p>;
   const newEnq = d.enq.filter((x) => x.status === "New").length;
-  const toFix = d.media.filter((m) => !m.f).length;
+  const imgs = d.media.filter((m) => m.type !== "video").length;
+  const vids = d.media.filter((m) => m.type === "video").length;
   const name = (me.email || "").split("@")[0].replace(/[^a-zA-Z]+/g, " ").trim();
   const who = name ? name.charAt(0).toUpperCase() + name.slice(1) : "there";
   return (
@@ -127,17 +129,22 @@ export function Overview({ me, go }) {
       <div className="grid">
         <div className="card"><div className="mut">New enquiries</div><div className="big">{newEnq}</div></div>
         <div className="card"><div className="mut">Sections live</div><div className="big">{d.live}/{d.total}</div></div>
-        <div className="card"><div className="mut">Media to fix</div><div className="big">{toFix}</div></div>
+        <div className="card"><div className="mut">Media on the site</div><div className="big" style={{ fontSize: 26 }}>{imgs} images · {vids} clips</div></div>
         <div className="card"><div className="mut">Team</div><div className="big">{d.team.length}</div></div>
       </div>
       <div className="card">
         <h3 style={{ fontSize: 18, marginBottom: 8 }}>Recent activity</h3>
         {d.activity.length === 0 && <div className="mut">No activity yet. Draft saves, uploads and publishes show up here.</div>}
-        {d.activity.map((a, i) => (
+        {d.activity.slice(0, more ? d.activity.length : 4).map((a, i) => (
           <div key={i} className="mut" style={{ padding: "5px 0" }}>
             {a.text}
           </div>
         ))}
+        {d.activity.length > 4 && (
+          <button className="btn" style={{ marginTop: 6 }} onClick={() => setMore(!more)}>
+            {more ? "Show less" : "See more"}
+          </button>
+        )}
       </div>
     </div>
   );

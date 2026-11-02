@@ -83,6 +83,7 @@ export default function AdminClient() {
   const [me, setMe] = useState(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPw, setShowPw] = useState(false);
   const [busy, setBusy] = useState(false);
   const [method, setMethod] = useState("");
   const [pw1, setPw1] = useState("");
@@ -268,24 +269,35 @@ export default function AdminClient() {
             {stage === "form" && (
               <>
                 <h1>Sabi Alaga admin</h1>
-                <p className="mut">Manage your website without calling a developer.</p>
+                <p className="mut">Update your pages, media and enquiries from one place.</p>
                 <label>Email
                   <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
                 </label>
                 <label>Password
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    autoComplete="current-password"
-                    onKeyDown={(e) => { if (e.key === "Enter" && !busy) onSubmit("signIn"); }}
-                  />
+                  <span className="pw-wrap">
+                    <input
+                      type={showPw ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      autoComplete="current-password"
+                      onKeyDown={(e) => { if (e.key === "Enter" && !busy) onSubmit("signIn"); }}
+                    />
+                    <button type="button" className="pw-eye" aria-label={showPw ? "Hide password" : "Show password"}
+                      onMouseDown={(e) => e.preventDefault()} onClick={() => setShowPw(!showPw)}>
+                      {showPw ? (
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19M14.12 14.12a3 3 0 1 1-4.24-4.24M1 1l22 22"/></svg>
+                      ) : (
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                      )}
+                    </button>
+                  </span>
                 </label>
+                <a className="fplink" href="/forgot-password.html">Forgot password?</a>
                 <button className="btn p" disabled={busy || !email || !password} onClick={() => onSubmit("signIn")} style={{ width: "100%" }}>
                   {busy ? "Working\u2026" : "Sign in"}
                 </button>
                 <p className="mut" style={{ margin: "12px 0 0", fontSize: 12, color: tone === "bad" ? "var(--fuchsia)" : undefined }} role="status">
-                  {notice || "Only invited emails can sign in. Forgot your password? Reset by email."}
+                  {notice || "Only invited emails can sign in."}
                 </p>
                 {cfg && cfg.ownerClaimed === false && (
                   <button className="btn" disabled={busy || !email || password.length < 6} onClick={() => onSubmit("signUp")} style={{ width: "100%", marginTop: 10 }}>
