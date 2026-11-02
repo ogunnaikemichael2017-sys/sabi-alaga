@@ -1,1 +1,44 @@
-Y29uc3QgQ0FSRFMgPSBbCiAgeyBoOiAiQWxhZ2EgSWR1cm8gYW5kIElqb2tvIiwgcDogIlRoZSB0cmFkaXRpb25hbCBob3N0IG9mIHlvdXIgY2VyZW1vbnk6IGJvdGggZmFtaWxpZXMsIHRoZSBwcmF5ZXJzLCB0aGUgZG9iYWxlIGFuZCB0aGUgcHJhaXNlLiIsIGE6ICJBc2sgYWJvdXQgdGhpcyIsIGhyZWY6ICIjYm9vayIsIHBob3RvOiAiL2ltYWdlcy9zZXJ2aWNlLTEuanBnIiwgYWx0OiAiVGhlIGFsYWdhIHNlYXRlZCBiZXR3ZWVuIGEgY291cGxlIGluIHBpbmsgYW5kIHB1cnBsZSBhc28gb2tlIiwgaWNvbnM6IDEgfSwKICB7IGg6ICJJbnRyb2R1Y3Rpb25zIGFuZCBlbmdhZ2VtZW50cyIsIHA6ICJQYXJsb3IgYW5kIGZhbWlseSBpbnRyb2R1Y3Rpb25zIHJ1biB3aXRoIHdhcm10aCwgaHVtb3VyIGFuZCByZXNwZWN0IGZvciBib3RoIGhvdXNlcy4iLCBhOiAiQXNrIGFib3V0IHRoaXMiLCBocmVmOiAiI2Jvb2siLCBwaG90bzogIi9pbWFnZXMvc2VydmljZS0yLmpwZyIsIGFsdDogIlRoZSBhbGFnYSBwcmVzZW50aW5nIGEgZmFuIHRvIGEgY291cGxlIGluIHJveWFsIGJsdWUgYXNvIG9rZSIsIGljb25zOiAyIH0sCiAgeyBoOiAiRXJ1IEl5YXdvIHNldHVwIiwgcDogIlRoZSBicmlkZVx1MjAxOXMgZW50b3VyYWdlIGFuZCBnaWZ0IHByZXNlbnRhdGlvbiwgc3R5bGVkIGFuZCBwcmVzZW50ZWQgYmVhdXRpZnVsbHkuIiwgYTogIkFzayBhYm91dCB0aGlzIiwgaHJlZjogIiNib29rIiwgcGhvdG86ICIvaW1hZ2VzL3NlcnZpY2UtMy5qcGciLCBhbHQ6ICJUaGUgYWxhZ2EgaG9sZGluZyB0aGUgbWljcm9waG9uZSBiZXNpZGUgYSBicmlkZSBpbiBwdXJwbGUgbGFjZSIsIGljb25zOiAzIH0sCiAgeyBoOiAiVHJhZGl0aW9uYWwgd2VkZGluZyBNQyIsIHA6ICJZb3VyIGRheSBhbmNob3JlZCBmcm9tIHRoZSBmaXJzdCBjdWUgdG8gdGhlIGxhc3QgZGFuY2U6IG9yZGVyLCBlbmVyZ3kgYW5kIHRpbWluZyB0aGF0IG5ldmVyIHNsaXBzLiIsIGE6ICJBc2sgYWJvdXQgdGhpcyIsIGhyZWY6ICIjYm9vayIsIHBob3RvOiAiL2ltYWdlcy9zZXJ2aWNlLTQuanBnIiwgYWx0OiAiVGhlIGFsYWdhIHNlYXRlZCB3aXRoIGEgY291cGxlIHVuZGVyIGEgbGlnaHRlZCBhcmNoIGJhY2tkcm9wIiwgaWNvbnM6IDQgfSwKICB7IGg6ICJHZWxlIHR5aW5nIGFuZCBzdHlsaW5nIiwgcDogIkdlbGUgdGllZCBiZWF1dGlmdWxseSBmb3IgdGhlIGJyaWRlIGFuZCBoZXIgZW50b3VyYWdlLCB0aGUgZmluaXNoaW5nIHRvdWNoIGZvciB5b3VyIHBpY3R1cmVzLiIsIGE6ICJBc2sgYWJvdXQgdGhpcyIsIGhyZWY6ICIjYm9vayIsIHBob3RvOiAiL2ltYWdlcy9zZXJ2aWNlLTUuanBnIiwgYWx0OiAiVGhlIGFsYWdhIHBsYXlmdWxseSBwb3NpbmcgYmVzaWRlIGEgY291cGxlIGluIHB1cnBsZSBhbmQgYmx1ZSIsIGljb25zOiAyIH0sCiAgeyBoOiAiVHJhaW5pbmcgYW5kIGNvbnN1bHRhdGlvbiIsIHA6ICJMZWFybiB0aGUgd29yayBmcm9tIHNvbWVvbmUgd2hvIGhhcyBkb25lIGl0IGZvciA1IHllYXJzLCBvciBnZXQgYWR2aWNlIGJlZm9yZSB5b3VyIG93biBldmVudC4iLCBhOiAiU2VlIHRyYWluaW5nIiwgaHJlZjogIiN0cmFpbmluZyIsIHBob3RvOiAiL2ltYWdlcy9zZXJ2aWNlLTYuanBnIiwgYWx0OiAiVGhlIGFsYWdhIHNlYXRlZCBiZXR3ZWVuIGEgY291cGxlIGluIHdoaXRlIGFuZCBnb2xkIiwgaWNvbnM6IDQgfSwKXTsKCmV4cG9ydCBkZWZhdWx0IGZ1bmN0aW9uIFNlcnZpY2VzKCkgewogIHJldHVybiAoCiAgICA8c2VjdGlvbiBpZD0ic2VydmljZXMiPgogICAgICA8ZGl2IGNsYXNzTmFtZT0id3JhcCI+CiAgICAgICAgPGgyPldoYXQgc2hlIGhvc3RzPC9oMj4KICAgICAgICA8cCBjbGFzc05hbWU9InN1YiI+T25lIGFsYWdhIGZyb20gdGhlIGZpcnN0IGtub2NrIHRvIHRoZSBsYXN0IGRhbmNlLCBzbyB5b3VyIGZhbWlsaWVzIGNhbiBzaW1wbHkgZW5qb3kgdGhlIGRheS48L3A+CiAgICAgICAgPGRpdj4KICAgICAgICAgIDxzdmcgd2lkdGg9IjAiIGhlaWdodD0iMCIgc3R5bGU9e3sgcG9zaXRpb246ICJhYnNvbHV0ZSIgfX0gYXJpYS1oaWRkZW49InRydWUiPgogICAgICAgICAgICA8c3ltYm9sIGlkPSJpMSIgdmlld0JveD0iMCAwIDI0IDI0Ij48cmVjdCB4PSI5IiB5PSIzIiB3aWR0aD0iNiIgaGVpZ2h0PSIxMSIgcng9IjMiIC8+PHBhdGggZD0iTTUgMTFhNyA3IDAgMCAwIDE0IDBNMTIgMTh2MyIgLz48L3N5bWJvbD4KICAgICAgICAgICAgPHN5bWJvbCBpZD0iaTIiIHZpZXdCb3g9IjAgMCAyNCAyNCI+PGNpcmNsZSBjeD0iOSIgY3k9IjE0IiByPSI1IiAvPjxjaXJjbGUgY3g9IjE1IiBjeT0iMTQiIHI9IjUiIC8+PHBhdGggZD0iTTggNWwyIDNoNGwyLTN6IiAvPjwvc3ltYm9sPgogICAgICAgICAgICA8c3ltYm9sIGlkPSJpMyIgdmlld0JveD0iMCAwIDI0IDI0Ij48cmVjdCB4PSI0IiB5PSI5IiB3aWR0aD0iMTYiIGhlaWdodD0iMTEiIHJ4PSIxIiAvPjxwYXRoIGQ9Ik0xMiA5djExTTQgMTNoMTZNMTIgOWMtMy01LTctMi00IDBNMTIgOWMzLTUgNy0yIDQgMCIgLz48L3N5bWJvbD4KICAgICAgICAgICAgPHN5bWJvbCBpZD0iaTQiIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZD0iTTIgOWwxMC01IDEwIDUtMTAgNXpNNiAxMXY1YzMgMyA5IDMgMTIgMHYtNSIgLz48L3N5bWJvbD4KICAgICAgICAgIDwvc3ZnPgogICAgICAgICAge0NBUkRTLm1hcCgoYywgaSkgPT4gKAogICAgICAgICAgICA8YXJ0aWNsZSBjbGFzc05hbWU9InBuIiBzdHlsZT17eyAiLS1pIjogaSB9fSBrZXk9e2l9PgogICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPSJ0YWJzIj4KICAgICAgICAgICAgICAgIHtBcnJheS5mcm9tKHsgbGVuZ3RoOiBjLmljb25zIH0pLm1hcCgoXywgaykgPT4gKAogICAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9InRiIiBrZXk9e2t9PgogICAgICAgICAgICAgICAgICAgIDxzdmc+PHVzZSBocmVmPXsiI2kiICsgKGsgKyAxKX0+PC91c2U+PC9zdmc+CiAgICAgICAgICAgICAgICAgIDwvc3Bhbj4KICAgICAgICAgICAgICAgICkpfQogICAgICAgICAgICAgIDwvZGl2PgogICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPSJ0eHQiPgogICAgICAgICAgICAgICAgPGgzPntjLmh9PC9oMz4KICAgICAgICAgICAgICAgIDxwPntjLnB9PC9wPgogICAgICAgICAgICAgICAgPGEgaHJlZj17Yy5ocmVmfT57Yy5hfTwvYT4KICAgICAgICAgICAgICA8L2Rpdj4KICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT0ibWVkIj48aW1nIHNyYz17Yy5waG90b30gYWx0PXtjLmFsdH0gbG9hZGluZz0ibGF6eSIgLz48L2Rpdj4KICAgICAgICAgICAgPC9hcnRpY2xlPgogICAgICAgICAgKSl9CiAgICAgICAgPC9kaXY+CiAgICAgIDwvZGl2PgogICAgPC9zZWN0aW9uPgogICk7Cn0K
+const CARDS = [
+  { h: "Alaga Iduro and Ijoko", p: "The traditional host of your ceremony: both families, the prayers, the dobale and the praise.", a: "Ask about this", href: "#book", photo: "/images/service-1.jpg", alt: "The alaga seated between a couple in pink and purple aso oke", icons: 1 },
+  { h: "Introductions and engagements", p: "Parlor and family introductions run with warmth, humour and respect for both houses.", a: "Ask about this", href: "#book", photo: "/images/service-2.jpg", alt: "The alaga presenting a fan to a couple in royal blue aso oke", icons: 2 },
+  { h: "Eru Iyawo setup", p: "The bride\u2019s entourage and gift presentation, styled and presented beautifully.", a: "Ask about this", href: "#book", photo: "/images/service-3.jpg", alt: "The alaga holding the microphone beside a bride in purple lace", icons: 3 },
+  { h: "Traditional wedding MC", p: "Your day anchored from the first cue to the last dance: order, energy and timing that never slips.", a: "Ask about this", href: "#book", photo: "/images/service-4.jpg", alt: "The alaga seated with a couple under a lighted arch backdrop", icons: 4 },
+  { h: "Gele tying and styling", p: "Gele tied beautifully for the bride and her entourage, the finishing touch for your pictures.", a: "Ask about this", href: "#book", photo: "/images/service-5.jpg", alt: "The alaga playfully posing beside a couple in purple and blue", icons: 2 },
+  { h: "Training and consultation", p: "Learn the work from someone who has done it for 5 years, or get advice before your own event.", a: "See training", href: "#training", photo: "/images/service-6.jpg", alt: "The alaga seated between a couple in white and gold", icons: 4 },
+];
+
+export default function Services() {
+  return (
+    <section id="services">
+      <div className="wrap">
+        <h2>What she hosts</h2>
+        <p className="sub">One alaga from the first knock to the last dance, so your families can simply enjoy the day.</p>
+        <div>
+          <svg width="0" height="0" style={{ position: "absolute" }} aria-hidden="true">
+            <symbol id="i1" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></symbol>
+            <symbol id="i2" viewBox="0 0 24 24"><circle cx="9" cy="14" r="5" /><circle cx="15" cy="14" r="5" /><path d="M8 5l2 3h4l2-3z" /></symbol>
+            <symbol id="i3" viewBox="0 0 24 24"><rect x="4" y="9" width="16" height="11" rx="1" /><path d="M12 9v11M4 13h16M12 9c-3-5-7-2-4 0M12 9c3-5 7-2 4 0" /></symbol>
+            <symbol id="i4" viewBox="0 0 24 24"><path d="M2 9l10-5 10 5-10 5zM6 11v5c3 3 9 3 12 0v-5" /></symbol>
+          </svg>
+          {CARDS.map((c, i) => (
+            <article className="pn" style={{ "--i": i }} key={i}>
+              <div className="tabs">
+                {Array.from({ length: c.icons }).map((_, k) => (
+                  <span className="tb" key={k}>
+                    <svg><use href={"#i" + (k + 1)}></use></svg>
+                  </span>
+                ))}
+              </div>
+              <div className="txt">
+                <h3>{c.h}</h3>
+                <p>{c.p}</p>
+                <a href={c.href}>{c.a}</a>
+              </div>
+              <div className="med"><img src={c.photo} alt={c.alt} loading="lazy" /></div>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
