@@ -563,6 +563,7 @@ exports.handler = async (event) => {
           emailSent = true;
         } catch (e) {
           emailError = String((e && e.message) || e).slice(0, 300);
+          console.error("invite email failed:", emailError);
         }
       } else {
         emailError = "ZEPTO_INVITE_TEMPLATE_KEY is not set on Netlify";
