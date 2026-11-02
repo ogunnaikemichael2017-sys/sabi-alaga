@@ -2,11 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import Editor from "./Editor";
-import { Overview, Pages, Media, Enquiries, Team, Settings } from "./panels";
+import { Overview, Pages, Media, Enquiries, Team, Settings, prefetchAdminData } from "./panels";
 import { loadPending, addPending, clearPending } from "./pending";
 
 const API = "/.netlify/functions/firebase-proxy";
-const SDK = "https://www.gstatic.com/firebasejs/10.14.1";
 
 async function post(body) {
   const res = await fetch(API, {
@@ -44,71 +43,12 @@ const ERRORS = {
 function friendlyError(err) {
   if (!err) return "Something went wrong. Try again.";
   if (String(err).startsWith("auth/unauthorized-domain")) {
-    return "Google sign-in isn't allowed on this preview address yet. Michael can add this domain in the Firebase console, or I can add it from here.";
+    return "Sign-in isn't allowed on this preview address yet. Michael can allow this domain in the Firebase console.";
   }
   return ERRORS[err] || "Something went wrong (" + err + "). Try again.";
 }
 
-function loadScript(src) {
-  return new Promise((resolve, reject) => {
-    if (document.querySelector(`script[src="${src}"]`)) return resolve();
-    const s = document.createElement("script");
-    s.src = src;
-    s.onload = () => resolve();
-    s.onerror = () => reject(new Error("script load failed"));
-    document.head.appendChild(s);
-  });
-}
 
-const G_ICON = (
-  <svg viewBox="0 0 48 48" width="18" height="18" aria-hidden="true">
-    <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.2-.1-2.3-.4-3.5z"/>
-    <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/>
-    <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/>
-    <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.1-4.1 5.5l6.2 5.2C36.9 40.2 44 35 44 24c0-1.2-.1-2.3-.4-3.5z"/>
-  </svg>
-);
-
-function VersionHistory({ canRestore, onClose, onRestored }) {
-  const [rows, setRows] = useState(null);
-  const [busy, setBusy] = useState("");
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      const r = await post({ action: "listVersions", idToken: JSON.parse(localStorage.getItem("sa_admin") || "null")?.idToken });
-      if (alive) setRows(r.status === 200 ? r.data.versions || [] : []);
-    })();
-    return () => { alive = false; };
-  }, []);
-  async function restore(page, vid) {
-    if (busy) return;
-    setBusy(vid);
-    const t = JSON.parse(localStorage.getItem("sa_admin") || "null")?.idToken;
-    const r = await post({ action: "restoreVersion", idToken: t, page, vid });
-    setBusy("");
-    if (r.status === 200) onRestored();
-    else toastLike(r.data.error || "Could not restore that version.");
-  }
-  return (
-    <>
-      <h3>Version history</h3>
-      <p className="mut">Restore any earlier version as a new draft.</p>
-      {!rows && <p className="mut">Loading&hellip;</p>}
-      {rows && rows.length === 0 && <p className="mut">No versions yet. They build up as pages are saved.</p>}
-      {rows && rows.map((v) => (
-        <div className="row" key={v.page + "/" + v.vid}>
-          <span className="nm">
-            Version {v.vid.slice(-4)}
-            <br />
-            <span className="mut">{(v.by || "someone").split("@")[0]} &middot; {v.updated ? new Date(v.updated).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : ""} &middot; {v.count} sections ({v.page})</span>
-          </span>
-          {canRestore && <button className="btn s" type="button" disabled={!!busy} onClick={() => restore(v.page, v.vid)}>{busy === v.vid ? "Restoring\u2026" : "Restore"}</button>}
-        </div>
-      ))}
-      <button className="btn" type="button" onClick={onClose}>Close</button>
-    </>
-  );
-}
 
 function toastLike(msg) {
   const t = document.createElement("div");
@@ -151,7 +91,6 @@ export default function AdminClient() {
   const [modal, setModal] = useState(null); // {t:"hist"} | {t:"pub"}
   const [toastMsg, setToastMsg] = useState("");
   const [pages, setPages] = useState([]);
-  const googleReady = useRef(null);
   const toastTimer = useRef(null);
 
   const show = (text, kind) => {
@@ -206,20 +145,9 @@ export default function AdminClient() {
         const r = await post({ action: "listPages", idToken: JSON.parse(localStorage.getItem("sa_admin") || "null").idToken });
         if (r.status === 200) setPages(r.data.pages || []);
       })();
+      prefetchAdminData();
     }
   }, [stage, me]);
-
-  async function ensureGoogle() {
-    if (googleReady.current) return googleReady.current;
-    googleReady.current = (async () => {
-      await loadScript(`${SDK}/firebase-app-compat.js`);
-      await loadScript(`${SDK}/firebase-auth-compat.js`);
-      if (!window.firebase.apps.length) {
-        window.firebase.initializeApp({ apiKey: cfg.apiKey, authDomain: cfg.authDomain, projectId: cfg.projectId });
-      }
-    })();
-    return googleReady.current;
-  }
 
   async function remember(idToken, expires) {
     localStorage.setItem("sa_admin", JSON.stringify({ idToken, exp: expires || Math.floor(Date.now() / 1000) + 3300 }));
@@ -270,23 +198,6 @@ export default function AdminClient() {
     );
   }
 
-  async function onGoogle() {
-    if (!cfg) return;
-    setBusy(true);
-    show("");
-    try {
-      await ensureGoogle();
-      const provider = new window.firebase.auth.GoogleAuthProvider();
-      provider.setCustomParameters({ prompt: "select_account" });
-      const cred = await window.firebase.auth().signInWithPopup(provider);
-      const idToken = await cred.user.getIdToken();
-      await finish(idToken, "google", Math.floor(Date.now() / 1000) + 3300);
-    } catch (e) {
-      show(friendlyError(e && (e.code || e.message)), "bad");
-    }
-    setBusy(false);
-  }
-
   async function onSubmit(mode) {
     setBusy(true);
     show("");
@@ -321,7 +232,7 @@ export default function AdminClient() {
     const w = await post({ action: "whoami", idToken: saved.idToken });
     if (w.status === 200) setMe(w.data);
     setStage("authed");
-    show(me && !me.hasPassword ? "Password set. You can now sign in with Google or with email and password." : "Password updated.", "ok");
+    show(me && !me.hasPassword ? "Password set. You can now sign in with your email and password." : "Password updated.", "ok");
     setBusy(false);
   }
 
@@ -347,10 +258,6 @@ export default function AdminClient() {
 
   const canEdit = me && ["owner", "editor"].includes(me.role);
   const canPub = canEdit && viewAs === "owner";
-  const roleText = pend
-    ? "Draft: " + pend + " unpublished change" + (pend === 1 ? "" : "s")
-    : "Live: up to date";
-
   return (
     <div className="sa-admin-root">
       {stage !== "authed" && (
@@ -362,10 +269,6 @@ export default function AdminClient() {
               <>
                 <h1>Sabi Alaga admin</h1>
                 <p className="mut">Manage your website without calling a developer.</p>
-                <button className="btn" disabled={busy || !cfg} onClick={onGoogle} style={{ width: "100%", marginBottom: 6 }}>
-                  {G_ICON} Continue with Google
-                </button>
-                <div className="sep">or use your email</div>
                 <label>Email
                   <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
                 </label>
@@ -430,9 +333,7 @@ export default function AdminClient() {
                   <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3h12M2 8h12M2 13h12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
                 </button>
                 <b style={{ font: "italic 900 18px var(--serif)" }}>The Sabi Alaga</b>
-                <span className={"pill " + (pend ? "w" : "ok")}>{roleText}</span>
                 <span className="sp" />
-                <button className="btn s keep" type="button" onClick={() => setModal({ t: "hist" })}>History</button>
                 <button
                   className="btn s p"
                   type="button"
@@ -454,7 +355,6 @@ export default function AdminClient() {
                       <div className="promenu">
                         <p style={{ margin: "0 0 4px" }}><b>{me.name || "Team member"}</b></p>
                         <p className="mut" style={{ margin: "0 0 6px", wordBreak: "break-all" }}>{me.email}</p>
-                        <p style={{ margin: "0 0 10px" }}><span className={"pill " + (pend ? "w" : "ok")}>{roleText}</span></p>
                         <button className="btn s keep" type="button" onClick={signOut}>Sign out</button>
                       </div>
                     </>
@@ -483,16 +383,9 @@ export default function AdminClient() {
             ))}
           </div>
 
-          {modal && (modal.t === "hist" || modal.t === "pub" || modal.t === "req") && (
+          {modal && (modal.t === "pub" || modal.t === "req") && (
             <div className="modal" onClick={() => setModal(null)}>
               <div className="card" onClick={(e) => e.stopPropagation()}>
-                {modal.t === "hist" && (
-                  <VersionHistory
-                    canRestore={canEdit}
-                    onClose={() => setModal(null)}
-                    onRestored={() => { setModal(null); bump(); toast("Version restored as your draft. Press Publish when ready."); }}
-                  />
-                )}
                 {modal.t === "pub" && (
                   <>
                     <h3>Publish to the live site?</h3>

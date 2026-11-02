@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { addPending } from "./pending";
+import { cacheGet, cacheSet } from "./cache";
 
 const API = "/.netlify/functions/firebase-proxy";
 
@@ -18,6 +19,23 @@ async function post(body) {
 function token() {
   const s = JSON.parse(localStorage.getItem("sa_admin") || "null");
   return s && s.idToken;
+}
+
+// Warm-up: fetch everything the panels need in one parallel batch right after
+// sign-in, so each panel opens instantly from cache and only refreshes after.
+export async function prefetchAdminData() {
+  const t = token();
+  if (!t) return;
+  const [pg, m, tm, e] = await Promise.all([
+    post({ action: "listPages", idToken: t }),
+    post({ action: "listMedia", idToken: t }),
+    post({ action: "listTeam", idToken: t }),
+    post({ action: "listEnquiries", idToken: t }),
+  ]);
+  if (pg.status === 200) cacheSet("pages", pg.data.pages || []);
+  if (m.status === 200) cacheSet("media", (m.data.items || []).map((x) => ({ ...x, f: x.f || "" })));
+  if (tm.status === 200) cacheSet("team", tm.data.team || []);
+  if (e.status === 200) cacheSet("enquiries", e.data.enquiries || []);
 }
 
 function fmtWhen(iso) {
@@ -57,6 +75,23 @@ export function Overview({ me, go }) {
   const [d, setD] = useState(null);
   useEffect(() => {
     let alive = true;
+    const build = (media, enq, team, home, metaD) => {
+      const homeSections = (home && home.sections) || [];
+      return {
+        media, enq, team,
+        live: homeSections.filter((x) => x.vis !== false).length,
+        total: homeSections.length,
+        activity: ((metaD && metaD.activity) || []).map((x) => {
+          const at = String(x || "").split("::");
+          return { when: at[0] || "", text: at.slice(1).join("::") || String(x) };
+        }),
+      };
+    };
+    const paint = () => {
+      const cm = cacheGet("media"), ce = cacheGet("enquiries"), ct = cacheGet("team"), ch = cacheGet("home");
+      if (cm && ce && ct && ch) setD(build(cm, ce, ct, ch, cacheGet("meta") || {}));
+    };
+    paint();
     (async () => {
       const t = token();
       const [m, e, tm, home, meta] = await Promise.all([
@@ -67,24 +102,23 @@ export function Overview({ me, go }) {
         post({ action: "getMeta", idToken: t }),
       ]);
       if (!alive) return;
-      const homeSections = (home.data.content && home.data.content.sections) || [];
-      setD({
-        media: m.data.items || [],
-        enq: e.data.enquiries || [],
-        team: tm.data.team || [],
-        live: homeSections.filter((s) => s.vis !== false).length,
-        total: homeSections.length,
-        activity: (meta.data.activity || []).map((x) => {
-          const at = String(x || "").split("::");
-          return { when: at[0] || "", text: at.slice(1).join("::") || String(x) };
-        }),
-      });
+      const media = (m.data.items || []).map((x) => ({ ...x, f: x.f || "" }));
+      const enq = e.data.enquiries || [];
+      const team = tm.data.team || [];
+      const hc = home.data.content || {};
+      const metaD = { activity: meta.data.activity || [], blocked: meta.data.blocked || [], settings: meta.data.settings || {} };
+      cacheSet("media", media);
+      cacheSet("enquiries", enq);
+      cacheSet("team", team);
+      cacheSet("home", hc);
+      cacheSet("meta", metaD);
+      setD(build(media, enq, team, hc, metaD));
     })();
     return () => { alive = false; };
   }, []);
   if (!d) return <p className="mut">Loading&hellip;</p>;
   const newEnq = d.enq.filter((x) => x.status === "New").length;
-  const toFix = d.media.filter((m) => (m.type !== "video" && !m.alt) || (m.type === "video" && m.kb > 20000)).length;
+  const toFix = d.media.filter((m) => !m.f).length;
   const name = (me.email || "").split("@")[0].replace(/[^a-zA-Z]+/g, " ").trim();
   const who = name ? name.charAt(0).toUpperCase() + name.slice(1) : "there";
   return (
@@ -119,8 +153,12 @@ export function Pages({ me, onOpen, toast }) {
   const canEdit = me && ["owner", "editor"].includes(me.role);
 
   async function load() {
+    const cp = cacheGet("pages");
+    if (cp) setPages(cp);
     const r = await post({ action: "listPages", idToken: token() });
-    setPages(r.data.pages || []);
+    const ps = r.data.pages || [];
+    cacheSet("pages", ps);
+    setPages(ps);
   }
   useEffect(() => { load(); }, []);
 
@@ -200,24 +238,30 @@ export function Media({ me, toast }) {
   const [uf, setUf] = useState("");
   const [preview, setPreview] = useState(null);
   const [editM, setEditM] = useState(null);
-  const [editAlt, setEditAlt] = useState("");
-  const [editF, setEditF] = useState("");
+  const [editTitle, setEditTitle] = useState("");
+  const [editFile, setEditFile] = useState(null);
   const canEdit = me && ["owner", "editor"].includes(me.role);
 
   async function load() {
+    const cm = cacheGet("media"), cp = cacheGet("pages");
+    if (cm) setItems(cm);
+    if (cp) setPages(cp);
     const [m, p] = await Promise.all([
       post({ action: "listMedia", idToken: token() }),
       post({ action: "listPages", idToken: token() }),
     ]);
     const list = (m.data.items || []).map((x) => ({ ...x, f: x.f || "" }));
+    cacheSet("media", list);
     setItems(list);
     const ps = p.data.pages || [];
+    cacheSet("pages", ps);
     setPages(ps);
     const byPage = {};
     await Promise.all(ps.map(async (pg) => {
       const r = await post({ action: "publicContent", page: pg.id });
       const secs = (r.data.content && r.data.content.sections) || [];
       byPage[pg.id] = secs.map((s) => ({ id: s.id, label: NAMEMAP[s.type] || s.type }));
+      cacheSet("content:" + pg.id, secs);
     }));
     setContentByPage(byPage);
     if (!uf) {
@@ -229,9 +273,25 @@ export function Media({ me, toast }) {
 
   async function persist(next) {
     const r = await post({ action: "saveMedia", idToken: token(), items: next });
-    if (r.status === 200) { setItems(next); return true; }
+    if (r.status === 200) { setItems(next); cacheSet("media", next); return true; }
     toast && toast(r.data.error || "Could not save the media library.");
     return false;
+  }
+
+  async function uploadOne(file) {
+    const rtype = file.type && file.type.indexOf("video/") === 0 ? "video" : "image";
+    if (file.size <= 4000000) {
+      const b64 = await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(file); });
+      const r = await post({ action: "cloudUpload", idToken: token(), file: b64, resourceType: rtype, folder: "sabialaga" });
+      if (r.status === 200 && r.data.ok) {
+        return { secure_url: r.data.secure_url, public_id: r.data.public_id, resource_type: r.data.resource_type, bytes: r.data.bytes, original_filename: r.data.original_filename, format: r.data.format };
+      }
+    }
+    const fd = new FormData();
+    fd.append("upload_preset", "ciya_academy");
+    fd.append("file", file);
+    const r = await fetch("https://api.cloudinary.com/v1_1/di4dlnd5x/auto/upload", { method: "POST", body: fd });
+    return r.json();
   }
 
   async function upload(files) {
@@ -240,23 +300,8 @@ export function Media({ me, toast }) {
     const added = [];
     for (const file of Array.from(files)) {
       try {
-        const rtype = file.type && file.type.indexOf("video/") === 0 ? "video" : "image";
-        let j = null;
-        if (file.size <= 4000000) {
-          const b64 = await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(file); });
-          const r = await post({ action: "cloudUpload", idToken: token(), file: b64, resourceType: rtype, folder: "sabialaga" });
-          if (r.status === 200 && r.data.ok) {
-            j = { secure_url: r.data.secure_url, public_id: r.data.public_id, resource_type: r.data.resource_type, bytes: r.data.bytes, original_filename: r.data.original_filename, format: r.data.format };
-          }
-        }
-        if (!j) {
-          const fd = new FormData();
-          fd.append("upload_preset", "ciya_academy");
-          fd.append("file", file);
-          const r = await fetch("https://api.cloudinary.com/v1_1/di4dlnd5x/auto/upload", { method: "POST", body: fd });
-          j = await r.json();
-        }
-        if (!j.secure_url) {
+        const j = await uploadOne(file);
+        if (!j || !j.secure_url) {
           toast && toast("Upload failed for " + file.name + ". Try a smaller file.");
           continue;
         }
@@ -280,22 +325,31 @@ export function Media({ me, toast }) {
     setBusy(false);
   }
 
-  async function setAlt(id, alt) {
-    const next = (items || []).map((x) => (x.id === id ? { ...x, alt } : x));
-    await persist(next);
-  }
-  async function moveTo(id, f) {
-    const next = (items || []).map((x) => (x.id === id ? { ...x, f } : x));
-    if (await persist(next)) { toast && toast("File moved"); addPending(1); }
-  }
-  function openEdit(m) { setEditM(m); setEditAlt(m.alt || ""); setEditF(m.f || ""); }
+  function openEdit(m) { setEditM(m); setEditTitle(m.name || ""); setEditFile(null); }
   async function saveEdit() {
     const m = editM;
     if (!m) return;
-    if (m.type !== "video" && editAlt !== (m.alt || "")) await setAlt(m.id, editAlt);
-    if (editF !== (m.f || "")) await moveTo(m.id, editF);
-    setEditM(null);
-    toast && toast("Saved");
+    setBusy(true);
+    try {
+      const patch = { name: editTitle.trim() || m.name };
+      if (editFile) {
+        const j = await uploadOne(editFile);
+        if (!j || !j.secure_url) {
+          toast && toast("Could not upload the new file. Nothing changed.");
+          setBusy(false);
+          return;
+        }
+        patch.id = j.public_id || m.id;
+        patch.url = j.secure_url;
+        patch.kb = Math.round((j.bytes || 0) / 1024);
+        patch.type = j.resource_type === "video" ? "video" : "image";
+      }
+      const next = (items || []).map((x) => (x.id === m.id ? { ...x, ...patch } : x));
+      if (await persist(next)) { toast && toast("Saved"); addPending(1); setEditM(null); }
+    } catch (e) {
+      toast && toast("Could not save. Check your connection and try again.");
+    }
+    setBusy(false);
   }
   async function remove(id) {
     if (!canEdit || busy) return;
@@ -320,7 +374,7 @@ export function Media({ me, toast }) {
   return (
     <div>
       <h2>Media library</h2>
-      <p className="mut">Files are sorted by the section they belong to, so each section&rsquo;s photos and videos are in one place. Videos over 20 MB are flagged because they slow the site.</p>
+      <p className="mut">Files are sorted by the section they belong to, so each section&rsquo;s photos and videos are in one place.</p>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "end" }}>
         <label style={{ margin: 0 }}>Upload into
           <select className="keep" style={{ width: "auto" }} value={uf} onChange={(e) => setUf(e.target.value)}>
@@ -363,8 +417,8 @@ export function Media({ me, toast }) {
                   <div className="b">
                     <b>{m.name}</b>
                     {kbText(m.kb)}
-                    {m.type === "video" && m.kb > 20000 && <> <span className="pill f">Too heavy</span></>}
-                    {m.type !== "video" && !m.alt && <> <span className="pill w">Add alt text</span></>}
+                    
+                    
                     {canEdit && (
                       <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
                         <button className="btn s" type="button" onClick={() => openEdit(m)}>Edit</button>
@@ -395,7 +449,7 @@ export function Media({ me, toast }) {
                 <div className="b">
                   <b>{m.name}</b>
                   {kbText(m.kb)}
-                  {m.type === "video" && m.kb > 20000 && <><span className="pill f">Too heavy</span></>}
+                  
                   {canEdit && (
                     <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
                       <button className="btn s" type="button" onClick={() => openEdit(m)}>Edit</button>
@@ -428,21 +482,18 @@ export function Media({ me, toast }) {
         <div className="modal" onClick={() => setEditM(null)}>
           <div className="card" style={{ maxWidth: 480, width: "100%" }} onClick={(e) => e.stopPropagation()}>
             <h3>Edit media</h3>
-            <p className="mut">{editM.name} · {kbText(editM.kb)}</p>
-            {editM.type !== "video" && (
-              <label>
-                Alt text
-                <input type="text" value={editAlt} onChange={(e) => setEditAlt(e.target.value)} placeholder="Describe the photo for screen readers" />
-              </label>
-            )}
+            <p className="mut">{editM.type === "video" ? "Video" : "Photo"} · {kbText(editM.kb)}</p>
             <label>
-              Section folder
-              <select value={editF} onChange={(e) => setEditF(e.target.value)}>
-                {fs.map((fo) => <option key={fo.id || "u"} value={fo.id}>{fo.label}</option>)}
-              </select>
+              Title
+              <input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} />
             </label>
+            <label>
+              Change file
+              <input type="file" accept={editM.type === "video" ? "video/*" : "image/*"} onChange={(e) => setEditFile(e.target.files && e.target.files[0] ? e.target.files[0] : null)} />
+            </label>
+            {editFile && <p className="mut">New file ready: {editFile.name}</p>}
             <div style={{ display: "flex", gap: 8 }}>
-              <button className="btn p" type="button" onClick={saveEdit}>Save</button>
+              <button className="btn p" type="button" disabled={busy} onClick={saveEdit}>{busy ? "Saving\u2026" : "Save"}</button>
               <button className="btn s" type="button" onClick={() => setEditM(null)}>Cancel</button>
             </div>
           </div>
@@ -468,12 +519,19 @@ export function Enquiries({ me, toast }) {
   const canEdit = me && ["owner", "editor"].includes(me.role);
 
   async function load() {
+    const ce = cacheGet("enquiries"), cmeta = cacheGet("meta");
+    if (ce) setList(ce);
+    if (cmeta && cmeta.blocked) setBlocked(cmeta.blocked);
     const [r, meta] = await Promise.all([
       post({ action: "listEnquiries", idToken: token() }),
       post({ action: "getMeta", idToken: token() }),
     ]);
-    setList(r.data.enquiries || []);
-    setBlocked(meta.data.blocked || []);
+    const el = r.data.enquiries || [];
+    const bl = meta.data.blocked || [];
+    cacheSet("enquiries", el);
+    cacheSet("meta", { ...(cacheGet("meta") || {}), blocked: bl });
+    setList(el);
+    setBlocked(bl);
   }
   useEffect(() => { load(); }, []);
 
@@ -553,7 +611,6 @@ const ROLE_DESC = {
   owner: "Owner: everything, including the team",
   editor: "Editor: edit and publish",
   contributor: "Contributor: edit drafts, needs approval to publish",
-  viewer: "Viewer: look only",
 };
 
 export function Team({ me, toast }) {
@@ -564,10 +621,15 @@ export function Team({ me, toast }) {
   const [busy, setBusy] = useState(false);
   const [invite, setInvite] = useState(null);
   const isOwner = me && me.role === "owner";
+  const isSelf = (x) => (me.uid && x.uid === me.uid) || (me.email && x.email && String(me.email).toLowerCase() === String(x.email).toLowerCase());
 
   async function load() {
+    const ct = cacheGet("team");
+    if (ct) setTeam(ct);
     const r = await post({ action: "listTeam", idToken: token() });
-    setTeam(r.data.team || []);
+    const tt = r.data.team || [];
+    cacheSet("team", tt);
+    setTeam(tt);
   }
   useEffect(() => { load(); }, []);
 
@@ -606,20 +668,19 @@ export function Team({ me, toast }) {
   return (
     <div>
       <h2>Team</h2>
-      <p className="mut">Invite helpers by name and email. They sign in with a password or Google using that same email, and get the role you choose.</p>
+      <p className="mut">Invite helpers by name and email. They sign in with a password using that same email, and get the role you choose.</p>
       {team.map((m) => (
         <div className="row" key={m.uid}>
           <span className="nm">{m.name ? (<>{m.name}<br /><span className="mut" style={{ fontSize: 13 }}>{m.email}</span></>) : m.email}</span>
           <span className={"pill " + (m.status === "Invited" ? "w" : "ok")}>{m.status || "Active"}</span>
-          {m.role === "owner" ? (
-            <span className="pill f">owner</span>
+          {isSelf(m) ? (
+            <span className="pill f">{m.role || "you"}</span>
           ) : (
             <>
               {isOwner && (
                 <select className="keep" style={{ width: "auto" }} value={m.role} onChange={(e) => changeRole(m.uid, e.target.value)}>
                   <option value="editor">editor</option>
                   <option value="contributor">contributor</option>
-                  <option value="viewer">viewer</option>
                 </select>
               )}
               {isOwner && <button className="btn s d" type="button" onClick={() => remove(m.uid, m.email)}>Remove</button>}
@@ -637,7 +698,6 @@ export function Team({ me, toast }) {
               <select value={role} onChange={(e) => setRole(e.target.value)}>
                 <option value="editor">editor</option>
                 <option value="contributor">contributor</option>
-                <option value="viewer">viewer</option>
               </select>
             </label>
             <button className="btn p" disabled={busy || !email.trim()} type="submit">{busy ? "Inviting\u2026" : "Send invite"}</button>
@@ -689,14 +749,21 @@ export function Settings({ me, onSavePassword, busy, pw1, setPw1, pw2, setPw2 })
 
   useEffect(() => {
     let alive = true;
+    const cm = cacheGet("media"), cmeta = cacheGet("meta");
+    if (cm) setMedia(cm);
+    if (cmeta && cmeta.settings) { setSet((cur) => ({ ...cur, ...cmeta.settings })); setLoaded(true); }
     (async () => {
       const [m, meta] = await Promise.all([
         post({ action: "listMedia", idToken: token() }),
         post({ action: "getMeta", idToken: token() }),
       ]);
       if (!alive) return;
-      setMedia(m.data.items || []);
-      setSet((cur) => ({ ...cur, ...(meta.data.settings || {}) }));
+      const ml = m.data.items || [];
+      const st = meta.data.settings || {};
+      cacheSet("media", ml.map((x) => ({ ...x, f: x.f || "" })));
+      cacheSet("meta", { ...(cacheGet("meta") || {}), settings: st, blocked: meta.data.blocked || [] });
+      setMedia(ml);
+      setSet((cur) => ({ ...cur, ...st }));
       setLoaded(true);
     })();
     return () => { alive = false; };

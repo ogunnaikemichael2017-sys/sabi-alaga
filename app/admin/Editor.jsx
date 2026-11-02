@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { DEFAULT_SECTIONS } from "../lib/content";
 import { addPending } from "./pending";
+import { cacheGet, cacheSet } from "./cache";
 
 const API = "/.netlify/functions/firebase-proxy";
 
@@ -138,8 +139,8 @@ export default function Editor({ me, page = "home", onPageChange, toast }) {
           post({ action: "listPages", idToken: t }),
           post({ action: "listMedia", idToken: t }),
         ]);
-        if (alive && p.status === 200) setPages(p.data.pages || []);
-        if (alive && m.status === 200) setMedia((m.data.items || []).map((x) => ({ ...x, f: x.f || "" })));
+        if (alive && p.status === 200) { const ps = p.data.pages || []; cacheSet("pages", ps); setPages(ps); }
+        if (alive && m.status === 200) { const ml = (m.data.items || []).map((x) => ({ ...x, f: x.f || "" })); cacheSet("media", ml); setMedia(ml); }
       } catch (e) {}
     })();
     return () => { alive = false; };
@@ -149,6 +150,14 @@ export default function Editor({ me, page = "home", onPageChange, toast }) {
     let alive = true;
     setLoaded(false);
     setEdit(null);
+    const cc = cacheGet("content:" + page);
+    if (cc && cc.list) {
+      setSections(cc.list);
+      setOrig(JSON.stringify(cc.list));
+      setTitle(cc.title || "");
+      setOrigTitle(cc.title || "");
+      setLoaded(true);
+    }
     (async () => {
       let list = null;
       let t = "";
@@ -158,6 +167,7 @@ export default function Editor({ me, page = "home", onPageChange, toast }) {
           list = r.data.content.sections;
           t = r.data.content.title || "";
         }
+        if (list) cacheSet("content:" + page, { list, title: t });
       } catch (e) {}
       if (!alive) return;
       if (!list) list = page === "home" ? JSON.parse(JSON.stringify(DEFAULT_SECTIONS)) : [];
