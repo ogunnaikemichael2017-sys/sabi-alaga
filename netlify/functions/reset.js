@@ -30,7 +30,9 @@ function getAdmin() {
 }
 
 async function sendResetEmail({ to, resetLink, firstName }) {
-  const host = process.env.ZEPTO_API_HOST || "api.zeptomail.com";
+  // TEMP DIAGNOSTIC: env host (cpaas.zoho.com) returns 500 with an empty body on
+  // sends; force the long-standing API host for this one test. Revert after.
+  const host = "api.zeptomail.com";
   const alias = process.env.ZEPTO_AGENT_ALIAS || "";
   const url = `https://${host}/v1.1/email/template`;
   const res = await fetch(url, {
