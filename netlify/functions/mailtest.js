@@ -40,20 +40,16 @@ exports.handler = async () => {
     subject: "Sabi Alaga raw API send test",
     htmlbody: "<p>If you can read this, raw API sends work.</p>",
   };
-  const tpl = {
-    template_key: process.env.ZEPTO_RESET_TEMPLATE_KEY,
-    from: { address: FROM, name: "Sabi Alaga" },
-    to,
-    merge_info: {
-      first_name: "Michael",
-      reset_link: "https://www.sabialaga.name.ng/",
-      login_url: "https://www.sabialaga.name.ng/",
-    },
-  };
   const results = {
+    key_preview: KEY.slice(0, 6) + "..." + KEY.slice(-4),
+    empty_body: await post("api.zeptomail.com", "/v1.1/email", {}),
+    bad_from: await post("api.zeptomail.com", "/v1.1/email", {
+      from: { address: "noreply@definitely-not-a-verified-domain-9x8y.example", name: "x" },
+      to,
+      subject: "probe",
+      htmlbody: "<p>probe</p>",
+    }),
     raw_api_zeptomail: await post("api.zeptomail.com", "/v1.1/email", raw),
-    raw_cpaas_zoho: await post("cpaas.zoho.com", "/v1.1/email", raw),
-    template_api_zeptomail: await post("api.zeptomail.com", "/v1.1/email/template", tpl),
   };
   return {
     statusCode: 200,
