@@ -1,6 +1,8 @@
-const WORDS = ["Ẹ káàbọ̀", "Dọ̀bálẹ̀", "Ìgbéyàwó", "Ayọ̀", "Àṣẹ", "Ẹ ṣé"];
+import { DEFAULTS } from "../lib/content";
 
-export default function Marquee() {
+export default function Marquee({ data }) {
+  const d = { ...DEFAULTS.marquee, ...data };
+  const WORDS = String(d.words || "").split(",").map((w) => w.trim()).filter(Boolean);
   return (
     <div className="marq" aria-hidden="true">
       <div className="track" id="tr">

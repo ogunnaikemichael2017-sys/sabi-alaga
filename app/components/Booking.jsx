@@ -1,23 +1,39 @@
 "use client";
 
 import { useState } from "react";
+import { DEFAULTS } from "../lib/content";
 
 const NUMBER = "2348089193663";
 
-export default function Booking() {
+export default function Booking({ data }) {
+  const d = { ...DEFAULTS.booking, ...data };
   const [f, setF] = useState({ n: "", t: "Traditional wedding", d: "", c: "", g: "" });
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const submit = (e) => {
     e.preventDefault();
     const v = (x) => f[x] || "not sure yet";
     const m = "Hello Sabi, I\u2019m " + v("n") + ". I\u2019d like to ask about a " + v("t") + " on " + v("d") + " in " + v("c") + ", about " + v("g") + " guests.";
+    try {
+      fetch("/.netlify/functions/firebase-proxy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "submitEnquiry",
+          name: f.n,
+          eventType: f.t,
+          date: f.d,
+          location: f.c,
+          note: f.g ? f.g + " guests" : "",
+        }),
+      }).catch(() => {});
+    } catch (e) {}
     window.open("https://wa.me/" + NUMBER + "?text=" + encodeURIComponent(m), "_blank");
   };
   return (
     <section className="book" id="book">
       <div className="wrap">
-        <h2>Save your date</h2>
-        <p className="sub">Tell her about your event. This opens WhatsApp with your details ready to send.</p>
+        <h2>{d.title}</h2>
+        <p className="sub">{d.intro}</p>
         <form onSubmit={submit} id="f">
           <label>Your name<input required autoComplete="name" value={f.n} onChange={set("n")} /></label>
           <label>Event type

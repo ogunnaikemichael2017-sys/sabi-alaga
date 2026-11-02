@@ -1,19 +1,13 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { DEFAULTS } from "../lib/content";
 
-const CARDS = [
-  { q: "“Placeholder: a couple on how she calmed both families and kept the day on time.”", b: "Bride and groom, Lagos" },
-  { q: "“Placeholder: a groomsman on the fun of the beg for the bride.”", b: "Groom’s friend, Ibadan" },
-  { q: "“Placeholder: a planner on how easy she was to work with.”", b: "Wedding planner, Lagos" },
-  { q: "“Placeholder: a mother of the bride on how respectful and organised the introduction was.”", b: "Mother of the bride, Ibadan" },
-  { q: "“Placeholder: a trainee on booking their first event after her course.”", b: "Training graduate" },
-];
 
-const BIG = "Placeholder: a couple describes how she calmed both families and kept the whole day on time.";
 
-function BigWords() {
-  const words = BIG.split(" ");
+
+function BigWords({ text }) {
+  const words = text.split(" ");
   const parts = [];
   words.forEach((w, i) => {
     parts.push(<w-d key={i}>{w}</w-d>);
@@ -22,7 +16,10 @@ function BigWords() {
   return parts;
 }
 
-export default function Testimonials() {
+export default function Testimonials({ data }) {
+  const d = { ...DEFAULTS.testimonials, ...data };
+  const CARDS = d.cards || [];
+  const BIG = d.quote;
   const ref = useRef(null);
 
   useEffect(() => {
@@ -72,14 +69,13 @@ export default function Testimonials() {
   return (
     <section className="say">
       <div className="wrap">
-        <h2>What people say</h2>
-        <p className="big"><BigWords /></p>
-        <b>Bride and groom, Lagos</b>
-        <div className="cf" aria-label="Testimonials" ref={ref}>
+        <h2>{d.title}</h2>
+        <p className="big"><BigWords text={BIG} /></p>
+        <b>Event decorator, Lagos</b>
+        <div className="cf" aria-label="Real messages from past clients" ref={ref}>
           {CARDS.map((c, i) => (
             <article key={i}>
-              <p>{c.q}</p>
-              <b>{c.b}</b>
+              <img src={c.i} alt={c.a} loading="lazy" width="660" />
             </article>
           ))}
         </div>
