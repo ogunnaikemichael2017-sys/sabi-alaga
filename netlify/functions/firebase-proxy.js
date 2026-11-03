@@ -470,7 +470,14 @@ exports.handler = async (event) => {
         email: claims.email || null,
         emailVerified: !!claims.email_verified || !!u.emailVerified,
         role: claims.role || null,
-        mustChangePassword: !!claims.mustChangePassword,
+        // Custom claims are baked into the token at issue time, so a stale
+        // session token still says mustChangePassword even after it was
+        // cleared. The accounts:lookup above carries the live claims; use
+        // those, falling back to the token claim only when the lookup gave
+        // us nothing.
+        mustChangePassword: typeof u.customClaims !== "undefined"
+          ? !!(u.customClaims || {}).mustChangePassword
+          : !!claims.mustChangePassword,
         hasPassword: !!(u.passwordHash || providers.includes("password")),
         providers,
         ownerClaimed: owner.status === 200,
@@ -525,6 +532,13 @@ exports.handler = async (event) => {
       const attrs = {};
       if (claims.role) attrs.role = claims.role;
       const upd = await setClaims(projectId, claims.user_id, attrs);
+      // A permanent password means the invite stage is over: mark the team
+      // member Active so the Team panel reflects it.
+      try {
+        await docUpsert(projectId, `team/${claims.user_id}`, { status: "Active", activatedAt: new Date().toISOString() });
+      } catch (e) {
+        console.error("setPassword: could not update team status:", (e && e.message) || e);
+      }
       return json(200, { ok: true, claimsUpdated: upd.status });
     }
 
