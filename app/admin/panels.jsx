@@ -150,11 +150,28 @@ export function Overview({ me, go }) {
   );
 }
 
+function ConfirmModal({ c, onClose }) {
+  if (!c) return null;
+  return (
+    <div className="modal" onClick={onClose}>
+      <div className="card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 460 }}>
+        <h3>{c.title}</h3>
+        <p className="mut" style={{ marginTop: 8 }}>{c.body}</p>
+        <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+          <button className="btn" type="button" onClick={onClose}>Cancel</button>
+          <button className="btn d" type="button" onClick={() => { onClose(); c.action(); }}>{c.label || "Delete"}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function Pages({ me, onOpen, toast }) {
   const [pages, setPages] = useState(null);
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [adding, setAdding] = useState(false);
+  const [confirm, setConfirm] = useState(null);
   const [busy, setBusy] = useState(false);
   const isOwner = me && me.role === "owner";
   const canEdit = me && ["owner", "editor"].includes(me.role);
@@ -184,9 +201,12 @@ export function Pages({ me, onOpen, toast }) {
     setBusy(false);
   }
 
-  async function del(slug) {
+  function askDel(slug) {
     if (!isOwner) return;
-    if (!window.confirm("Delete the page " + slug + "? Its content is lost.")) return;
+    setConfirm({ title: "Remove page", body: "Delete the page " + slug + "? Its content is lost.", label: "Delete", action: () => doDel(slug) });
+  }
+
+  async function doDel(slug) {
     const r = await post({ action: "deletePage", idToken: token(), slug });
     if (r.status === 200) {
       await load();
@@ -200,6 +220,7 @@ export function Pages({ me, onOpen, toast }) {
   return (
     <div>
       <h2>Pages</h2>
+      {confirm && <ConfirmModal c={confirm} onClose={() => setConfirm(null)} />}
       <p className="mut">Home is the main page. A dedicated page gives a section more room, such as every wedding video, and visitors reach it from a &ldquo;See more&rdquo; button.</p>
       {canEdit && (
         <div style={{ margin: "12px 0 14px" }}>
@@ -216,7 +237,7 @@ export function Pages({ me, onOpen, toast }) {
           <p className="mut" style={{ margin: "2px 0 0" }}>{p.sectionCount} sections</p>
           <div style={{ marginTop: 10 }}>
             <button className="btn s p" type="button" onClick={() => onOpen(p.id)}>Edit sections</button>{" "}
-            {isOwner && p.id !== "home" && <button className="btn s d" type="button" onClick={() => del(p.id)}>Remove page</button>}
+            {isOwner && p.id !== "home" && <button className="btn s d" type="button" onClick={() => askDel(p.id)}>Remove page</button>}
           </div>
         </div>
       ))}
@@ -523,6 +544,7 @@ export function Enquiries({ me, toast }) {
   const [list, setList] = useState(null);
   const [month, setMonth] = useState(11);
   const [blocked, setBlocked] = useState(null);
+  const [confirm, setConfirm] = useState(null);
   const canEdit = me && ["owner", "editor"].includes(me.role);
 
   async function load() {
@@ -557,9 +579,12 @@ export function Enquiries({ me, toast }) {
     else { toast && toast(r.data.error || "Could not update."); }
   }
 
-  async function del(id) {
+  function askDel(id) {
     if (!canEdit) return;
-    if (!window.confirm("Delete this enquiry?")) return;
+    setConfirm({ title: "Delete enquiry", body: "Delete this enquiry? This cannot be undone.", label: "Delete", action: () => doDel(id) });
+  }
+
+  async function doDel(id) {
     const r = await post({ action: "deleteEnquiry", idToken: token(), id });
     if (r.status === 200) { await load(); toast && toast("Enquiry deleted."); }
     else { toast && toast(r.data.error || "Could not delete."); }
@@ -569,6 +594,7 @@ export function Enquiries({ me, toast }) {
   return (
     <div>
       <h2>Enquiries</h2>
+      {confirm && <ConfirmModal c={confirm} onClose={() => setConfirm(null)} />}
       <p className="mut">Every booking form submission lands here and in her email.</p>
       {list.length === 0 && <p className="mut">No enquiries yet. When someone fills the booking form on the website, it appears here.</p>}
       {list.map((x) => (
@@ -583,7 +609,7 @@ export function Enquiries({ me, toast }) {
           <span className={"pill" + (x.status === "New" ? " f" : "")}>{x.status}</span>
           {canEdit && x.status !== "Replied" && <button className="btn s" type="button" onClick={() => setStatus(x.id, "Replied")}>Mark replied</button>}
           {canEdit && x.status !== "New" && <button className="btn s" type="button" onClick={() => setStatus(x.id, "New")}>Mark new</button>}
-          {canEdit && <button className="btn s d" type="button" onClick={() => del(x.id)}>Delete</button>}
+          {canEdit && <button className="btn s d" type="button" onClick={() => askDel(x.id)}>Delete</button>}
         </div>
       ))}
       <div className="card" style={{ marginTop: 18 }}>
@@ -627,6 +653,7 @@ export function Team({ me, toast }) {
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [invite, setInvite] = useState(null);
+  const [confirm, setConfirm] = useState(null);
   const isOwner = me && me.role === "owner";
   const isSelf = (x) => (me.uid && x.uid === me.uid) || (me.email && x.email && String(me.email).toLowerCase() === String(x.email).toLowerCase());
 
@@ -663,9 +690,12 @@ export function Team({ me, toast }) {
     else { toast && toast(res.data.error || "Could not change the role."); }
   }
 
-  async function remove(uid, em) {
+  function askRemove(uid, em) {
     if (!isOwner || busy) return;
-    if (!window.confirm("Remove " + em + " from the team? They lose admin access at once.")) return;
+    setConfirm({ title: "Remove team member", body: "Remove " + em + " from the team? They lose admin access at once.", label: "Remove", action: () => doRemove(uid) });
+  }
+
+  async function doRemove(uid) {
     const res = await post({ action: "removeUser", idToken: token(), targetUid: uid });
     if (res.status === 200) { await load(); toast && toast("Access removed"); }
     else { toast && toast(res.data.error || "Could not remove."); }
@@ -681,20 +711,30 @@ export function Team({ me, toast }) {
           <span className="nm">{m.name ? (<>{m.name}<br /><span className="mut" style={{ fontSize: 13 }}>{m.email}</span></>) : m.email}</span>
           <span className={"pill " + (m.status === "Invited" ? "w" : "ok")}>{m.status || "Active"}</span>
           {isSelf(m) ? (
-            <span className="pill f">{m.role || "you"}</span>
+            isOwner ? (
+              <select className="keep" style={{ width: "auto" }} value={m.role || "owner"} onChange={(e) => changeRole(m.uid, e.target.value)}>
+                <option value="owner">owner</option>
+                <option value="editor">editor</option>
+                <option value="contributor">contributor</option>
+              </select>
+            ) : (
+              <span className="pill f">{m.role || "you"}</span>
+            )
           ) : (
             <>
               {isOwner && (
                 <select className="keep" style={{ width: "auto" }} value={m.role} onChange={(e) => changeRole(m.uid, e.target.value)}>
+                  <option value="owner">owner</option>
                   <option value="editor">editor</option>
                   <option value="contributor">contributor</option>
                 </select>
               )}
-              {isOwner && <button className="btn s d" type="button" onClick={() => remove(m.uid, m.email)}>Remove</button>}
+              {isOwner && <button className="btn s d" type="button" onClick={() => askRemove(m.uid, m.email)}>Remove</button>}
             </>
           )}
         </div>
       ))}
+      <p className="mut" style={{ marginTop: 10 }}>Handing over ownership: make the other person owner first, then change your own role.</p>
       {isOwner ? (
         <div className="card" style={{ marginTop: 14 }} onSubmit={() => {}}>
           <h3 style={{ fontSize: 18, marginBottom: 10 }}>Invite someone</h3>
@@ -718,6 +758,7 @@ export function Team({ me, toast }) {
           <div className="mut" style={{ padding: "3px 0" }} key={r}>{ROLE_DESC[r]}</div>
         ))}
       </div>
+      {confirm && <ConfirmModal c={confirm} onClose={() => setConfirm(null)} />}
       {invite && (
         <div className="modal" onClick={() => setInvite(null)}>
           <div className="card" onClick={(e) => e.stopPropagation()}>

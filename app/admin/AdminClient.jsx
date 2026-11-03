@@ -66,6 +66,12 @@ const TABS = [
 export default function AdminClient() {
   const [stage, setStage] = useState("loading"); // loading | form | changepass | authed
   const [tab, setTab] = useState("overview");
+  useEffect(() => {
+    try {
+      const t = localStorage.getItem("sabialaga_admin_tab");
+      if (t && TABS.some((x) => x[0] === t)) setTab(t);
+    } catch (e) {}
+  }, []);
   const [navOpen, setNavOpen] = useState(false);
   const [editPage, setEditPage] = useState("home");
   const [notice, setNotice] = useState("");
@@ -103,6 +109,11 @@ export default function AdminClient() {
     setToastMsg(msg);
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToastMsg(""), 2200);
+  };
+
+  const changeTab = (id) => {
+    setTab(id);
+    try { localStorage.setItem("sabialaga_admin_tab", id); } catch (e) {}
   };
 
   useEffect(() => { setPend(loadPending()); }, []);
@@ -334,7 +345,7 @@ export default function AdminClient() {
             <nav className={"side" + (navOpen ? " open" : "")}>
               <div className="lg">Admin</div>
               {TABS.map(([id, label]) => (
-                <button key={id} type="button" className={"keep" + (tab === id ? " on" : "")} onClick={() => { setTab(id); setNavOpen(false); }}>
+                <button key={id} type="button" className={"keep" + (tab === id ? " on" : "")} onClick={() => { changeTab(id); setNavOpen(false); }}>
                   {label}
                 </button>
               ))}
@@ -376,7 +387,7 @@ export default function AdminClient() {
               <main>
                 {tab === "overview" && <Overview me={me} go={setTab} />}
                 {tab === "sections" && <Editor me={me} page={editPage} onPageChange={setEditPage} toast={toast} />}
-                {tab === "pages" && <Pages me={me} onOpen={(slug) => { setEditPage(slug); setTab("sections"); }} toast={toast} />}
+                {tab === "pages" && <Pages me={me} onOpen={(slug) => { setEditPage(slug); changeTab("sections"); }} toast={toast} />}
                 {tab === "media" && <Media me={me} toast={toast} />}
                 {tab === "enquiries" && <Enquiries me={me} toast={toast} />}
                 {tab === "team" && <Team me={me} toast={toast} />}
@@ -389,7 +400,7 @@ export default function AdminClient() {
           </div>
           <div className="tabbar">
             {TABS.map(([id, label]) => (
-              <button key={id} type="button" className={"keep" + (tab === id ? " on" : "")} onClick={() => setTab(id)}>
+              <button key={id} type="button" className={"keep" + (tab === id ? " on" : "")} onClick={() => changeTab(id)}>
                 {label}
               </button>
             ))}
