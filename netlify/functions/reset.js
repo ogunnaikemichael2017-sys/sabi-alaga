@@ -29,6 +29,14 @@ function getAdmin() {
   return firebaseAdmin;
 }
 
+// Accepts the API key with or without the "Zoho-enczapikey" prefix pasted in
+// (the console copies it with the prefix; a doubled prefix makes every send fail).
+function zeptoToken(raw) {
+  const s = String(raw || "").trim();
+  return s.startsWith("Zoho-enczapikey") ? s.slice("Zoho-enczapikey".length).trim() : s;
+}
+
+
 async function sendResetEmail({ to, resetLink, firstName }) {
   const host = process.env.ZEPTO_API_HOST || "api.zeptomail.com";
   const alias = process.env.ZEPTO_AGENT_ALIAS || "";
@@ -36,7 +44,7 @@ async function sendResetEmail({ to, resetLink, firstName }) {
   const res = await fetch(url, {
     method: "POST",
     headers: {
-      Authorization: `Zoho-enczapikey ${process.env.ZEPTO_API_KEY}`,
+      Authorization: `Zoho-enczapikey ${zeptoToken(process.env.ZEPTO_API_KEY)}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
@@ -52,6 +60,16 @@ async function sendResetEmail({ to, resetLink, firstName }) {
   });
   if (!res.ok) {
     const text = await res.text();
+    const hdrs = {};
+    res.headers.forEach((v, k) => {
+      if (/^(x-|content-type)/i.test(k)) hdrs[k] = v;
+    });
+    console.error("zepto send failed:", JSON.stringify({
+      url,
+      status: res.status,
+      body: text.slice(0, 800),
+      headers: hdrs,
+    }));
     throw new Error(`ZeptoMail ${res.status}: ${text.slice(0, 300)}`);
   }
 }

@@ -73,6 +73,7 @@ function folders(pages, contentByPage) {
 
 export function Overview({ me, go }) {
   const [d, setD] = useState(null);
+  const [more, setMore] = useState(false);
   useEffect(() => {
     let alive = true;
     const build = (media, enq, team, home, metaD) => {
@@ -118,7 +119,8 @@ export function Overview({ me, go }) {
   }, []);
   if (!d) return <p className="mut">Loading&hellip;</p>;
   const newEnq = d.enq.filter((x) => x.status === "New").length;
-  const toFix = d.media.filter((m) => !m.f).length;
+  const imgs = d.media.filter((m) => m.type !== "video").length;
+  const vids = d.media.filter((m) => m.type === "video").length;
   const name = (me.email || "").split("@")[0].replace(/[^a-zA-Z]+/g, " ").trim();
   const who = name ? name.charAt(0).toUpperCase() + name.slice(1) : "there";
   return (
@@ -127,17 +129,22 @@ export function Overview({ me, go }) {
       <div className="grid">
         <div className="card"><div className="mut">New enquiries</div><div className="big">{newEnq}</div></div>
         <div className="card"><div className="mut">Sections live</div><div className="big">{d.live}/{d.total}</div></div>
-        <div className="card"><div className="mut">Media to fix</div><div className="big">{toFix}</div></div>
+        <div className="card"><div className="mut">Media on the site</div><div className="big" style={{ fontSize: 26 }}>{imgs} images · {vids} clips</div></div>
         <div className="card"><div className="mut">Team</div><div className="big">{d.team.length}</div></div>
       </div>
       <div className="card">
         <h3 style={{ fontSize: 18, marginBottom: 8 }}>Recent activity</h3>
         {d.activity.length === 0 && <div className="mut">No activity yet. Draft saves, uploads and publishes show up here.</div>}
-        {d.activity.map((a, i) => (
+        {d.activity.slice(0, more ? d.activity.length : 4).map((a, i) => (
           <div key={i} className="mut" style={{ padding: "5px 0" }}>
             {a.text}
           </div>
         ))}
+        {d.activity.length > 4 && (
+          <button className="btn" style={{ marginTop: 6 }} onClick={() => setMore(!more)}>
+            {more ? "Show less" : "See more"}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -639,7 +646,7 @@ export function Team({ me, toast }) {
     setBusy(true);
     const r = await post({ action: "inviteUser", idToken: token(), email, role, name: name.trim() });
     if (r.status === 200 && r.data.ok) {
-      setInvite({ email: r.data.email, role: r.data.role, tempPassword: r.data.tempPassword });
+      setInvite({ email: r.data.email, role: r.data.role, tempPassword: r.data.tempPassword, sent: r.data.emailSent === true, reason: r.data.emailError || "" });
       setEmail("");
       setName("");
       await load();
@@ -715,7 +722,8 @@ export function Team({ me, toast }) {
         <div className="modal" onClick={() => setInvite(null)}>
           <div className="card" onClick={(e) => e.stopPropagation()}>
             <h3>Invite ready: {invite.email}</h3>
-            <p className="mut">Copy this and send it to them (WhatsApp is fine):</p>
+            <p className="mut">{invite.sent ? "An email with these details is on its way to them. Keep this copy as a backup:" : "The invite email could not be sent. Copy this and send it to them (WhatsApp is fine):"}</p>
+            {!invite.sent && invite.reason && <p className="mut" style={{ fontSize: 12 }}>Reason: {invite.reason}</p>}
             <p className="mut" style={{ border: "2px dashed var(--line)", borderRadius: 14, padding: 12 }}>
               Sign in at the Sabi Alaga admin with this email and temporary password:<br />
               Email: {invite.email}<br />
