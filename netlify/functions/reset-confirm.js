@@ -74,6 +74,29 @@ exports.handler = async (event) => {
 
     await docRef.update({ used: true, usedAt: Date.now() });
 
+    // A password the user chose themselves means the temporary invite
+    // password is gone: clear the mustChangePassword flag (keep the role)
+    // and mark the team member Active so the admin team list reflects it.
+    try {
+      const u = await admin.auth().getUser(data.uid);
+      const claims = { ...(u.customClaims || {}) };
+      if (claims.mustChangePassword) {
+        delete claims.mustChangePassword;
+        await admin.auth().setCustomUserClaims(data.uid, claims);
+      }
+    } catch (e) {
+      console.error("reset-confirm: could not clear mustChangePassword:", (e && e.message) || e);
+    }
+    try {
+      const tRef = db.collection("team").doc(data.uid);
+      const tDoc = await tRef.get();
+      if (tDoc.exists && tDoc.data().status && tDoc.data().status !== "Active") {
+        await tRef.update({ status: "Active", activatedAt: new Date().toISOString() });
+      }
+    } catch (e) {
+      console.error("reset-confirm: could not update team status:", (e && e.message) || e);
+    }
+
     return json(200, { ok: true, message: "Your password has been updated. You can sign in now." });
   } catch (err) {
     console.error("reset-confirm failed:", err);
